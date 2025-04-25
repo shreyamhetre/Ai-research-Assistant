@@ -117,7 +117,7 @@ const MCQAI = () => {
                                         control={<Radio sx={{ color: 'white' }} />}
                                         label={optionText} // Display full text
                                         sx={{
-                                            color: showResults && optionIdentifier === correctAnswer ? 'success.main' : 
+                                            color: showResults && optionIdentifier === correctAnswer ? 'rgb(144, 238, 144)' : 
                                                   (showResults && selectedAnswer === optionIdentifier && optionIdentifier !== correctAnswer) ? 'error.main' : 'inherit',
                                             '& .MuiTypography-root': { fontSize: '12px' }
                                         }}
@@ -159,7 +159,7 @@ const MCQAI = () => {
                 overflow: "auto", // Changed to "auto" to allow scrolling
             }}
         >
-            <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Button
                     variant="contained"
                     color="primary"
@@ -167,7 +167,7 @@ const MCQAI = () => {
                     disabled={loading || !selectedTitle}
                     sx={{ mt: 2, mr: 2, fontSize: '14px' }}
                 >
-                    {loading ? <CircularProgress size={24} color="inherit" /> : "Generate MCQs"}
+                    {loading ? <CircularProgress size={24} sx={{ color: "rgb(43, 43, 243)" }} /> : "Generate MCQs"}
                 </Button>
                 <FormControl sx={{ minWidth: 200 }}>
                     <InputLabel sx={{ color: '#b0b0b0' }}>Select Paper</InputLabel>

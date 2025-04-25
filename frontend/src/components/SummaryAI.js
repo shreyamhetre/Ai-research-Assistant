@@ -58,7 +58,7 @@ const SummaryAI = () => {
 
     return (
         <Box style={{ padding: '20px', backgroundColor: '#1e1e1e', color: "#ffffff", height: 'auto', display: 'flex', flexDirection: 'column', position: 'relative', alignItems: 'center' }}>
-            <Box sx={{ alignSelf: 'flex-start', mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ marginLeft: '10px', alignSelf: 'flex-start', mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Button
                     variant="contained"
                     color="primary"
@@ -69,7 +69,7 @@ const SummaryAI = () => {
                         fontFamily: 'Poppins, sans-serif',
                     }}
                 >
-                    {loading ? <CircularProgress size={24} color="inherit" /> : "Generate Summary"}
+                    {loading ? <CircularProgress size={24} sx={{ color: "rgb(43, 43, 243)" }} /> : "Generate Summary"}
                 </Button>
                 <FormControl sx={{ minWidth: 200 }}>
                     <InputLabel sx={{ color: '#b0b0b0' }}>Select Paper</InputLabel>
@@ -113,7 +113,7 @@ const SummaryAI = () => {
                         flexGrow: 1,
                         overflow: "auto",
                         maxHeight: "calc(100% - 60px)", 
-                        width: "90%"
+                        width: "95%",
                     }}
                 >
                     <Typography variant="h6" gutterBottom>
