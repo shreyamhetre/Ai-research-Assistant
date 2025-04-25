@@ -9,8 +9,8 @@ import {
     Avatar
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
-import SmartToyIcon from '@mui/icons-material/SmartToy';
-import PersonIcon from '@mui/icons-material/Person';
+import user from "../assests/user.png";
+import chatbot from "../assests/chatbot.png";
 
 const ChatbotAI = () => {
     const [query, setQuery] = useState("");
@@ -116,7 +116,7 @@ const ChatbotAI = () => {
                             opacity: 0.7
                         }}
                     >
-                        <SmartToyIcon sx={{ fontSize: 60, mb: 2 ,color: "#000000"}} />
+                        <img src={chatbot} alt="Chatbot" style={{ width: 60, height: 60, marginBottom: 10 , backgroundColor: "#ffffff", borderRadius: "100px"}} />
                         <Typography variant="body1">
                             Ask me anything!
                         </Typography>
@@ -134,15 +134,15 @@ const ChatbotAI = () => {
                         >
                             <Avatar 
                                 sx={{ 
-                                    bgcolor: msg.sender === "user" ? "#3f51b5" : (msg.isError ? "#f44336" : "white"),
+                                    bgcolor: "white", // White background
                                     mr: msg.sender === "user" ? 0 : 1,
                                     ml: msg.sender === "user" ? 1 : 0,
-                                    width: msg.sender === "user" ? 32 : 40,
-                                    height: msg.sender === "user" ? 32 : 40
+                                    width: 32, // Smaller size for cute look
+                                    height: 32, // Smaller size for cute look
+                                    borderRadius: "50%", // Rounded edges for cuteness
                                 }}
-                            >
-                                {msg.sender === "user" ? <PersonIcon /> : <SmartToyIcon />}
-                            </Avatar>
+                                src={msg.sender === "user" ? user : chatbot}
+                            />
                             <Paper
                                 sx={{
                                     p: 1.5,
@@ -192,12 +192,12 @@ const ChatbotAI = () => {
                 />
                 <Button
                     variant="contained"
-                    color="primary"
+                    color="white"
                     onClick={handleSendQuery}
                     disabled={!query.trim() || loading}
-                    style={{ marginLeft: "10px", width: "50px", height: "50px" }}
+                    style={{ marginLeft: "10px", width: "50px", height: "50px" ,backgroundColor: "rgb(43, 43, 243)"}}
                 >
-                    {loading ? <CircularProgress size={24} color="inherit" /> : <SendIcon />}
+                    {loading ? <CircularProgress size={24} color="inherit"  /> : <SendIcon />}
                 </Button>
             </Box>
         </Box>
