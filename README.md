@@ -70,4 +70,17 @@ This project showcases a wide range of technical and problem-solving skills:
 
 ---
 
-## Project Structure
+## Installation
+
+### Prerequisites
+- Python 3.9+
+- PostgreSQL with pgvector extension installed
+- Git
+- pip
+
+### Steps
+Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/AI-RESEARCH-ASSISTANT.git
+   pip install -r requirements.txt
+   cd AI-RESEARCH-ASSISTANT
