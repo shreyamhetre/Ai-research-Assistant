@@ -88,24 +88,6 @@ def create_mcq():
         logging.error(f"Error in /createMcq: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-# @app.route('/chatbot', methods=['POST'])
-# def chatbot():
-#     try:
-#         data = request.json
-#         title = data.get("title")
-#         query = data.get("query")
-#         if not title or not query:
-#             return jsonify({"error": "Both title and query are required"}), 400
-        
-#         result = run_crew(task_type="chatbot", title=title, query=query)
-#         if not result or "output" not in result:
-#             return jsonify({"error": "Failed to generate response"}), 500
-            
-#         return jsonify({"query": query, "response": result["output"]}), 200
-#     except Exception as e:
-#         logging.error(f"Error in /chatbot: {e}", exc_info=True)
-#         return jsonify({"error": str(e)}), 500
-
 @app.route('/chatbot', methods=['POST'])
 def chatbot():
     try:
