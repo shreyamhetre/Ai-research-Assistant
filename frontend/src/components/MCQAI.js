@@ -1,200 +1,3 @@
-// import React, { useState } from "react";
-// import {    
-//   Box, 
-//   Typography, 
-//   Button, 
-//   CircularProgress, 
-//   Paper,
-//   Radio,
-//   RadioGroup,
-//   FormControlLabel,
-//   FormControl,
-//   Divider} from '@mui/material';
-
-// const MCQAI = ({ paperTitle }) => {
-//     const [mcqs, setMcqs] = useState([]);
-//     const [loading, setLoading] = useState(false);
-//     const [error, setError] = useState("");
-//     const [selectedAnswers, setSelectedAnswers] = useState({});
-//     const [showResults, setShowResults] = useState(false);
-
-//     const generateMCQs = async () => {
-//         if (!paperTitle) {
-//             setError("Please upload a paper first");
-//             return;
-//         }
-
-//         setLoading(true);
-//         setError("");
-//         setMcqs([]);
-//         setSelectedAnswers({});
-//         setShowResults(false);
-
-//         try {
-//             const response = await fetch('http://localhost:5000/createMcq', {
-//                 method: 'POST',
-//                 headers: {
-//                     'Content-Type': 'application/json',
-//                 },
-//                 body: JSON.stringify({ title: paperTitle }),
-//             });
-
-//             const data = await response.json();
-
-//             if (response.ok) {
-//                 setMcqs(data.mcqs);
-//             } else {
-//                 throw new Error(data.error || "Failed to generate MCQs");
-//             }
-//         } catch (error) {
-//             console.error('MCQ generation error:', error);
-//             setError(`Error: ${error.message}`);
-//         } finally {
-//             setLoading(false);
-//         }
-//     };
-
-//     const handleAnswerChange = (questionIndex, value) => {
-//         setSelectedAnswers({
-//             ...selectedAnswers,
-//             [questionIndex]: value
-//         });
-//     };
-
-//     const handleCheckAnswers = () => {
-//         setShowResults(true);
-//     };
-
-//     const renderMCQs = () => {
-//         return mcqs.map((mcq, index) => {
-//             const questionNum = index + 1;
-//             const options = mcq.options;
-//             const correctAnswer = mcq.correct_answer;
-//             const selectedAnswer = selectedAnswers[index];
-//             const isCorrect = showResults && selectedAnswer === correctAnswer;
-
-//             return (
-//                 <Box key={index} sx={{ mb: 4 }}>
-//                     <Typography variant="h6" gutterBottom sx={{ fontSize: '14px' }}>
-//                         Question {questionNum}: {mcq.question}
-//                     </Typography>
-
-//                     <FormControl component="fieldset" sx={{ ml: 2 }}>
-//                         <RadioGroup
-//                             value={selectedAnswers[index] || ""}
-//                             onChange={(e) => handleAnswerChange(index, e.target.value)}
-//                         >
-//                             {options.map((option, optIndex) => (
-//                                 <FormControlLabel
-//                                     key={optIndex}
-//                                     value={option}
-//                                     control={<Radio sx={{ color: 'white' }} />}
-//                                     label={option}
-//                                     sx={{
-//                                         color: showResults && option === correctAnswer ? 'success.main' : 
-//                                               (showResults && selectedAnswer === option && option !== correctAnswer) ? 'error.main' : 'inherit',
-//                                         '& .MuiTypography-root': { fontSize: '12px' }
-//                                     }}
-//                                 />
-//                             ))}
-//                         </RadioGroup>
-//                     </FormControl>
-
-//                     {showResults && (
-//                         <Typography 
-//                             variant="body2" 
-//                             sx={{ 
-//                                 mt: 1, 
-//                                 color: isCorrect ? 'success.main' : 'error.main',
-//                                 fontWeight: 'bold',
-//                                 fontSize: '12px'
-//                             }}
-//                         >
-//                             {isCorrect ? "Correct!" : `Wrong! The correct answer is: ${correctAnswer}`}
-//                         </Typography>
-//                     )}
-                    
-//                     <Divider sx={{ mt: 2 }} />
-//                 </Box>
-//             );
-//         });
-//     };
-
-//     return (
-//         <Box
-//             style={{
-//                 padding: "10px",
-//                 backgroundColor: "#1e1e1e",
-//                 color: "#ffffff",
-//                 height: "80vh", // Use viewport height to avoid page overflow
-//                 display: "flex",
-//                 flexDirection: "column",
-//                 overflow: "hidden", // Prevent page scrollbar
-//             }}
-//         >
-//             <Box sx={{ mb: 4 }}>
-             
-             
-                
-//                 <Button
-//                     variant="contained"
-//                     color="primary"
-//                     onClick={generateMCQs}
-//                     disabled={!paperTitle || loading}
-//                     sx={{ mt: 2, mr: 2, fontSize: '14px'  }}
-//                 >
-//                     {loading ? <CircularProgress size={24} color="inherit" /> : "Generate MCQs"}
-//                 </Button>
-
-//                 {mcqs.length > 0 && (
-//                     <Button
-//                         variant="outlined"
-//                         onClick={handleCheckAnswers}
-//                         sx={{ 
-//                             mt: 2, 
-//                             fontSize: '14px',
-//                             color: 'rgb(144, 238, 144)', // Light green color
-//                             borderColor: 'rgb(144, 238, 144)',
-//                             '&:hover': {
-//                                 borderColor: 'rgb(144, 238, 144)',
-//                                 backgroundColor: 'rgba(144, 238, 144, 0.1)', // Slight background on hover
-//                             }
-//                         }}                    >
-//                         Check Answers
-//                     </Button>
-//                 )}
-//             </Box>
-
-//             {error && (
-//                 <Typography color="error" sx={{ mb: 2 }}>
-//                     {error}
-//                 </Typography>
-//             )}
-
-//             {mcqs.length > 0 && (
-//                 <Paper 
-//                     elevation={6} 
-//                     sx={{ 
-//                         p: 2, 
-//                         bgcolor: "#2a2a2a", 
-//                         color: "#ffffff",
-//                         height: "80%",
-//                         overflow: "auto",
-//                         border: '1px solid rgb(98, 103, 98)',
-//                         boxSizing: "border-box",
-//                         minHeight: "85%", 
-//                         maxHeight: "85%" 
-//                     }}
-//                 >
-//                     {renderMCQs()}
-//                 </Paper>
-//             )}
-//         </Box>
-//     );
-// };
-
-// export default MCQAI;
-
 import React, { useState, useEffect } from "react";
 import {    
   Box, 
@@ -304,19 +107,23 @@ const MCQAI = () => {
                             value={selectedAnswers[index] || ""}
                             onChange={(e) => handleAnswerChange(index, e.target.value)}
                         >
-                            {options.map((option, optIndex) => (
-                                <FormControlLabel
-                                    key={optIndex}
-                                    value={option}
-                                    control={<Radio sx={{ color: 'white' }} />}
-                                    label={option}
-                                    sx={{
-                                        color: showResults && option === correctAnswer ? 'success.main' : 
-                                              (showResults && selectedAnswer === option && option !== correctAnswer) ? 'error.main' : 'inherit',
-                                        '& .MuiTypography-root': { fontSize: '12px' }
-                                    }}
-                                />
-                            ))}
+                            {options.map((option, optIndex) => {
+                                const optionIdentifier = option.split(')')[0] + ')'; // e.g., "a)"
+                                const optionText = option; // Full text, e.g., "a) Conversational fluency and adaptability"
+                                return (
+                                    <FormControlLabel
+                                        key={optIndex}
+                                        value={optionIdentifier} // Use "a)", "b)", etc.
+                                        control={<Radio sx={{ color: 'white' }} />}
+                                        label={optionText} // Display full text
+                                        sx={{
+                                            color: showResults && optionIdentifier === correctAnswer ? 'success.main' : 
+                                                  (showResults && selectedAnswer === optionIdentifier && optionIdentifier !== correctAnswer) ? 'error.main' : 'inherit',
+                                            '& .MuiTypography-root': { fontSize: '12px' }
+                                        }}
+                                    />
+                                );
+                            })}
                         </RadioGroup>
                     </FormControl>
 
@@ -349,7 +156,7 @@ const MCQAI = () => {
                 height: "80vh",
                 display: "flex",
                 flexDirection: "column",
-                overflow: "hidden",
+                overflow: "auto", // Changed to "auto" to allow scrolling
             }}
         >
             <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -418,12 +225,9 @@ const MCQAI = () => {
                             p: 2, 
                             bgcolor: "#2a2a2a", 
                             color: "#ffffff",
-                            height: "80%",
-                            overflow: "auto",
+                            overflow: "auto", // Keep this to allow scrolling if needed
                             border: '1px solid rgb(98, 103, 98)',
                             boxSizing: "border-box",
-                            minHeight: "85%", 
-                            maxHeight: "85%" 
                         }}
                     >
                         {renderMCQs()}
