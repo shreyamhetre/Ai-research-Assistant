@@ -1,0 +1,9 @@
+ # Dependencies
+crewai
+langchain-google-genai
+google-generativeai
+flask
+psycopg2-binary
+sentence-transformers
+python-dotenv
+PyMuPDF
