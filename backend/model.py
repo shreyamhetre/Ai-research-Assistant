@@ -51,56 +51,6 @@ class GeminiLLM(LLM):
     def _llm_type(self) -> str:
         return "gemini"
     
-# def custom_data_retriever(query_embedding: List[float], title: str, k: int = 5) -> List[Document]:
-#     """
-#     Perform a similarity search on the data table's embedding column with title filter.
-#     """
-#     conn = None
-#     try:
-#         conn = psycopg2.connect(
-#             dbname=Config.PG_DATABASE,
-#             user=Config.PG_USER,
-#             password=Config.PG_PASSWORD,
-#             host=Config.PG_HOST,
-#             port=Config.PG_PORT
-#         )
-#         cur = conn.cursor()
-
-#         # Convert query_embedding to vector string
-#         query_vector = f"[{','.join(map(str, query_embedding))}]"
-
-#         # Cosine similarity query
-#         cur.execute(
-#             """
-#             SELECT title, content
-#             FROM data
-#             WHERE title = %s
-#             ORDER BY embedding <=> %s
-#             LIMIT %s
-#             """,
-#             (title, query_vector, k)
-#         )
-#         results = cur.fetchall()
-
-#         # Convert to LangChain Documents
-#         documents = [
-#             Document(
-#                 page_content=row[1],
-#                 metadata={"title": row[0]}
-#             )
-#             for row in results
-#         ]
-
-#         print(f"[DEBUG] Retrieved {len(documents)} documents for title '{title}'")
-#         return documents
-
-#     except Exception as e:
-#         print(f"[ERROR] Custom retriever error: {e}")
-#         return []
-#     finally:
-#         if conn:
-#             cur.close()
-#             conn.close()
 
 def custom_data_retriever(query_embedding: List[float], k: int = 5) -> List[Document]:
     """
@@ -240,68 +190,11 @@ def mcq_generate(content):
         print(f"[ERROR] Failed to call Gemini API: {e}")
         return []
 
-
-# def parse_mcqs(text):
-#     try:
-#         mcqs = []
-#         # Normalize newlines and remove extra whitespace
-#         text = re.sub(r'\n\s*\n+', '\n\n', text.replace('\r\n', '\n').strip())
-        
-#         # Split into blocks based on question headers (**<number>. ...)
-#         blocks = re.split(r'\n\n(?=\*\*[0-5]\.)', text)
-#         print(f"[DEBUG] Found {len(blocks)} question blocks")
-        
-#         for i, block in enumerate(blocks):
-#             block = block.strip()
-#             if not block:
-#                 print(f"[DEBUG] Skipping block {i+1}: Empty block")
-#                 continue
-                
-#             lines = [line.strip() for line in block.split('\n') if line.strip()]
-#             print(f"[DEBUG] Block {i+1} has {len(lines)} lines: {lines[:2]}...")
-            
-#             # Expect at least 6 lines: question, 4 options, answer
-#             if len(lines) >= 6:
-#                 # Extract question (remove **<number>. prefix)
-#                 question_line = lines[0].replace("**", "").strip()
-#                 question = re.sub(r'^\d+\.\s*', '', question_line).strip()
-                
-#                 # Extract options (lines 1-4)
-#                 options = [line.strip() for line in lines[1:5] if line.strip()]
-                
-#                 # Extract answer (line 5)
-#                 answer_line = lines[5].strip()
-#                 correct_answer = "N/A"
-                
-#                 if answer_line.startswith("**Answer:"):
-#                     correct_answer = answer_line.replace("**Answer:", "").strip()
-                
-#                 if len(options) == 4 and correct_answer != "N/A":
-#                     mcqs.append({
-#                         "question": question,
-#                         "options": options,
-#                         "correct_answer": correct_answer
-#                     })
-#                     print(f"[DEBUG] Parsed MCQ {i+1}: {mcqs[-1]}")
-#                 else:
-#                     print(f"[DEBUG] Skipping block {i+1}: Invalid options ({len(options)}) or answer ({correct_answer})")
-#             else:
-#                 print(f"[DEBUG] Skipping block {i+1}: Not enough lines ({len(lines)})")
-        
-#         print(f"[DEBUG] Total parsed MCQs: {len(mcqs)}")
-#         return mcqs
-    
-#     except Exception as e:
-#         print(f"[ERROR] Failed to parse MCQs: {e}")
-#         return []
-
 def parse_mcqs(text):
     try:
         mcqs = []
-        # Normalize newlines and remove extra whitespace
         text = re.sub(r'\n\s*\n+', '\n\n', text.replace('\r\n', '\n').strip())
         
-        # Split into blocks based on question headers (**<number>. ...)
         blocks = re.split(r'\n\n(?=\*\*[0-5]\.)', text)
         print(f"[DEBUG] Found {len(blocks)} question blocks")
         
@@ -314,21 +207,16 @@ def parse_mcqs(text):
             lines = [line.strip() for line in block.split('\n') if line.strip()]
             print(f"[DEBUG] Block {i+1} has {len(lines)} lines: {lines[:2]}...")
             
-            # Expect at least 6 lines: question, 4 options, answer
             if len(lines) >= 6:
-                # Extract question (remove **<number>. prefix)
                 question_line = lines[0].replace("**", "").strip()
                 question = re.sub(r'^\d+\.\s*', '', question_line).strip()
                 
-                # Extract options (lines 1-4)
                 options = [line.strip() for line in lines[1:5] if line.strip()]
                 
-                # Extract answer (line 5)
                 answer_line = lines[5].strip()
                 correct_answer = "N/A"
                 
                 if answer_line.startswith("**Answer:"):
-                    # Remove ** from the answer (e.g., "(c)**" becomes "(c)")
                     correct_answer = re.sub(r'\*\*', '', answer_line.replace("**Answer:", "").strip())
                 
                 if len(options) == 4 and correct_answer != "N/A":

@@ -15,9 +15,3 @@ class Config:
     
     PG_DB_URI = f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
 
-# class Config:
-#     PG_HOST = 'localhost'  # Use 'localhost' when connecting to Docker container on same machine
-#     PG_PORT = 5433  # The mapped port you specified in Docker run command
-#     PG_DATABASE = 'postgres'  # Try connecting to the default postgres database
-#     PG_USER = 'postgres'
-#     PG_PASSWORD = '123456789'
