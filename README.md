@@ -1,5 +1,7 @@
 # AI-RESEARCH-ASSISTANT using AGENTIC RAG
 
+**Transforming research into insights, effortlessly and intelligently.**
+
 **AI-RESEARCH-ASSISTANT** is a powerful AI-driven application designed to assist researchers, students, and academics in processing and analyzing academic research papers. It enables users to upload PDF papers, store their content and embeddings in a PostgreSQL database with pgvector, generate concise summaries, create multiple-choice questions (MCQs), and answer queries using a Agentic Retrieval-Augmented Generation (RAG) approach. Built with a modern tech stack, Ai-Research-Assistant showcases advanced skills in backend development, AI integration, and database management.
 
 ---
