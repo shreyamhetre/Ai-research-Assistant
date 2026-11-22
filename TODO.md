@@ -11,8 +11,9 @@ Rule for every phase: secrets live only in `backend/.env` (gitignored). No keys,
 - [x] Professional UI (theme, sidebar, drag-and-drop upload, markdown answers, quiz scoring)
 - [x] README rewritten
 - [x] Tested without key: DB, chunking, embeddings, vector search, upload + validation, duplicates
-- [ ] Tested with key: chat, summary, quiz (needs OPENAI_API_KEY in backend/.env)
-- [ ] Tune `MAX_DISTANCE` on a real paper (BGE distances are tight; tiny test docs can't tell)
+- [x] Tested with key on a real paper: upload, summary, quiz, cited chat, off-topic fallback
+- [x] Tuned retrieval: TOP_K=8, MAX_DISTANCE=0.50 (relevant 0.30-0.45, off-topic 0.57+)
+- [ ] Retrieval is weak on short single-topic papers (relevant chunk ranked 8th): add reranking or neighbour-chunk expansion
 - [ ] Review the UI in the browser together
 - [ ] Turn off Flask `debug=True` outside local dev
 

@@ -22,6 +22,6 @@ class Config:
 
     CHUNK_CHARS = 1800
     CHUNK_OVERLAP = 250
-    TOP_K = 6
+    TOP_K = 8
     # cosine distance above this is treated as "not in the papers"
-    MAX_DISTANCE = 0.65
+    MAX_DISTANCE = 0.50
