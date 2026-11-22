@@ -1,9 +1,7 @@
- # Dependencies
-crewai
-langchain-google-genai
-google-generativeai
-flask
-psycopg2-binary
-sentence-transformers
-python-dotenv
-PyMuPDF
+flask>=3.0
+flask-cors>=4.0
+openai>=1.40
+sentence-transformers>=3.0
+psycopg2-binary>=2.9
+pypdf>=4.0
+python-dotenv>=1.0

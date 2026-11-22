@@ -1,55 +1,77 @@
 import React from 'react';
-import { Box, List, ListItem, ListItemText } from '@mui/material';
+import { Box, Typography, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import UploadFileIcon from '@mui/icons-material/UploadFileOutlined';
+import ArticleIcon from '@mui/icons-material/ArticleOutlined';
+import ChatIcon from '@mui/icons-material/ChatBubbleOutline';
+import QuizIcon from '@mui/icons-material/QuizOutlined';
+import AutoStoriesIcon from '@mui/icons-material/AutoStories';
+import { colors } from '../theme';
 
-const Sidebar = ({ activeTab, onTabChange }) => {
-  const tabs = [
-    { id: 'upload', label: 'Upload Pdf' },
-    { id: 'summary', label: 'Summary Agent' },
-    { id: 'chatbot', label: 'Chatbot Agent' },
-    { id: 'mcq', label: 'MCQ Agent' },
-  ];
+export const TABS = [
+  { id: 'upload', label: 'Library', icon: <UploadFileIcon fontSize="small" /> },
+  { id: 'chatbot', label: 'Ask', icon: <ChatIcon fontSize="small" /> },
+  { id: 'summary', label: 'Summaries', icon: <ArticleIcon fontSize="small" /> },
+  { id: 'mcq', label: 'Quiz', icon: <QuizIcon fontSize="small" /> },
+];
 
-  return (
-    <Box
-      style={{
-        width: '20%',
-        backgroundColor: '#2a2a2a',
-        height: '100%',
-        padding: '20px',
-        boxSizing: 'border-box',
-        // borderRight: '1px solidrgb(15, 113, 56)',
-        borderRight: '1px solid rgb(98, 103, 98)'
-      }}
-    >
-      <List>
-        {tabs.map((tab) => (
-          <ListItem
-            key={tab.id}
-            button
-            onClick={() => onTabChange(tab.id)}
-            style={{
-              backgroundColor: activeTab === tab.id ? '#3f51b5' : '#3a3a3a',
-              marginBottom: '10px',
-              borderRadius: '5px',
-              transition: 'background-color 0.3s',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3f51b5')}
-            onMouseLeave={(e) =>
-              e.currentTarget.style.backgroundColor =
-                activeTab === tab.id ? '#3f51b5' : '#3a3a3a'
-            }
-          >
-            <ListItemText
-              primary={tab.label}
-              primaryTypographyProps={{
-                style: { color: '#ffffff', fontSize: '14px' },
-              }}
-            />
-          </ListItem>
-        ))}
-      </List>
+const Sidebar = ({ activeTab, onTabChange }) => (
+  <Box
+    component="nav"
+    sx={{
+      width: 232,
+      flexShrink: 0,
+      bgcolor: colors.surface,
+      borderRight: `1px solid ${colors.border}`,
+      p: 2,
+      display: 'flex',
+      flexDirection: 'column',
+    }}
+  >
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 1, py: 1, mb: 3 }}>
+      <Box
+        sx={{
+          width: 32, height: 32, borderRadius: 2, display: 'grid', placeItems: 'center',
+          background: `linear-gradient(135deg, ${colors.accent}, #8b5cf6)`,
+        }}
+      >
+        <AutoStoriesIcon sx={{ fontSize: 18, color: '#fff' }} />
+      </Box>
+      <Typography sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.1 }}>
+        Research
+        <br />
+        Assistant
+      </Typography>
     </Box>
-  );
-};
+
+    <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+      {TABS.map((tab) => {
+        const active = activeTab === tab.id;
+        return (
+          <ListItemButton
+            key={tab.id}
+            selected={active}
+            onClick={() => onTabChange(tab.id)}
+            sx={{
+              borderRadius: 2,
+              color: active ? colors.text : colors.muted,
+              '&.Mui-selected': { bgcolor: 'rgba(99,102,241,0.16)', color: '#fff' },
+              '&.Mui-selected:hover': { bgcolor: 'rgba(99,102,241,0.22)' },
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 34, color: active ? colors.accent : 'inherit' }}>
+              {tab.icon}
+            </ListItemIcon>
+            <ListItemText primary={tab.label} primaryTypographyProps={{ fontSize: 14, fontWeight: 500 }} />
+          </ListItemButton>
+        );
+      })}
+    </List>
+
+    <Typography sx={{ mt: 'auto', px: 1, fontSize: 11.5, color: colors.muted }}>
+      RAG over your papers · pgvector · BGE
+    </Typography>
+  </Box>
+);
 
 export default Sidebar;

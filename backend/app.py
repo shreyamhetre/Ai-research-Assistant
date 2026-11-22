@@ -1,125 +1,125 @@
 import logging
-from typing import List
-from flask_cors import CORS
-from flask import Flask, request, jsonify
-from utils.pdf_parser import extract_text_from_pdf
-from vector_db import db_connection, store_to_pgvector, get_content_and_title, debug_pgvector_table
-from model import summarize_text, mcq_generate, embeddings, custom_data_retriever, llm
-from utils.embeddings import generate_embeddings
-from langchain_core.documents import Document
-from langchain_core.retrievers import BaseRetriever
-from langchain.chains import RetrievalQA
-import torchvision
-from crew import run_crew
 
-from agents import summarization_task 
-torchvision.disable_beta_transforms_warning()
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+
+import db
+import services
+from config import Config
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("app")
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = Config.MAX_UPLOAD_MB * 1024 * 1024
 CORS(app)
 
-@app.route('/upload', methods=['POST'])
-def upload_paper():
+
+def err(message: str, status: int):
+    return jsonify({"error": message}), status
+
+
+def server_error(e: Exception):
+    """Never echo raw exception text to clients: provider errors can include key fragments."""
+    from openai import AuthenticationError, RateLimitError
+    if isinstance(e, AuthenticationError):
+        return err("LLM authentication failed. Check OPENAI_API_KEY on the server.", 502)
+    if isinstance(e, RateLimitError):
+        return err("LLM rate limit or quota reached. Try again later.", 429)
+    return err("Internal server error. See server log.", 500)
+
+
+@app.errorhandler(413)
+def too_large(_):
+    return err(f"File too large (max {Config.MAX_UPLOAD_MB} MB)", 413)
+
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
+
+
+@app.route("/upload", methods=["POST"])
+def upload():
+    title = (request.form.get("title") or "").strip()
+    file = request.files.get("file")
+    if not title or not file:
+        return err("Title and file are required", 400)
+
+    data = file.read()
+    if not data.startswith(b"%PDF"):
+        return err("Only PDF files are supported", 400)
+
     try:
-        title = request.form.get("title")
-        file = request.files.get("file")
-
-        if not title or not file:
-            return jsonify({"error": "Title and file are required"}), 400
-
-        text_content = extract_text_from_pdf(file)
-        if not text_content:
-            return jsonify({"error": "Failed to extract text from PDF"}), 500
-
-        embeddings = generate_embeddings(text_content)
-
-        file.seek(0)
-        file_binary = file.read()
-
-        store_to_pgvector(title, text_content, embeddings, file_binary)
-
-        return jsonify({"message": "PDF uploaded and stored successfully"}), 200
-
+        n = services.ingest(title, data)
+    except db.DuplicateTitle:
+        return err(f"A paper titled '{title}' already exists", 409)
+    except ValueError as e:
+        return err(str(e), 422)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log.exception("upload failed")
+        return server_error(e)
+    return jsonify({"message": "Paper uploaded", "chunks": n}), 200
 
-@app.route('/summary', methods=['POST'])
-def summarize_pdf():
-    try:
-        title = request.json.get("title")
-        if not title:
-            return jsonify({"error": "Title is required"}), 400
-        
-        result = run_crew(task_type="summarize", title=title)
-        if not result or "output" not in result:
-            return jsonify({"error": "Failed to generate summary"}), 500
-            
-        return jsonify({"title": title, "summary": result["output"]}), 200
-    except Exception as e:
-        logging.error(f"Error in /summary: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
 
-def summarize_pdf():
-    try:
-        title = request.json.get("title")
-        if not title:
-            return jsonify({"error": "Title is required"}), 400
-        
-        # Directly call the summarization function
-        summary = summarization_task(title)
-        return jsonify({"title": title, "summary": summary}), 200
-    except Exception as e:
-        logging.error(f"Error in /summary: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-    
-@app.route('/createMcq', methods=['POST'])
-def create_mcq():
-    try:
-        title = request.json.get("title")
-        if not title:
-            return jsonify({"error": "Title is required"}), 400
-        
-        result = run_crew(task_type="mcq", title=title)
-        if not result or "output" not in result:
-            return jsonify({"error": "Failed to generate MCQs"}), 500
-            
-        return jsonify({"title": title, "mcqs": result["output"]}), 200
-    except Exception as e:
-        logging.error(f"Error in /createMcq: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/chatbot', methods=['POST'])
-def chatbot():
-    try:
-        data = request.json
-        query = data.get("query")
-        if not query:
-            return jsonify({"error": "Query is required"}), 400
-        
-        result = run_crew(task_type="chatbot", title=None, query=query)
-        if not result or "output" not in result:
-            return jsonify({"error": "Failed to generate response"}), 500
-            
-        return jsonify({"query": query, "response": result["output"]}), 200
-    except Exception as e:
-        logging.error(f"Error in /chatbot: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-    
-@app.route('/fetch-titles', methods=['GET'])
+@app.route("/fetch-titles", methods=["GET"])
 def fetch_titles():
     try:
-        conn = db_connection()
-        if not conn:
-            return jsonify({"error": "Failed to connect to database"}), 500
-        cur = conn.cursor()
-        cur.execute("SELECT DISTINCT title FROM public.data")
-        titles = [row[0] for row in cur.fetchall()]
-        cur.close()
-        conn.close()
-        return jsonify({"titles": titles}), 200
+        return jsonify({"titles": db.list_titles()})
     except Exception as e:
-        logging.error(f"Error in /fetch-titles: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-    
+        log.exception("fetch-titles failed")
+        return server_error(e)
+
+
+def _title_from_body():
+    title = (request.get_json(silent=True) or {}).get("title")
+    return title if title else None
+
+
+@app.route("/summary", methods=["POST"])
+def summary():
+    title = _title_from_body()
+    if not title:
+        return err("Title is required", 400)
+    try:
+        return jsonify({"title": title, "summary": services.summarize(title)})
+    except services.NotFound:
+        return err("Paper not found", 404)
+    except Exception as e:
+        log.exception("summary failed")
+        return server_error(e)
+
+
+@app.route("/createMcq", methods=["POST"])
+def create_mcq():
+    title = _title_from_body()
+    if not title:
+        return err("Title is required", 400)
+    try:
+        mcqs = services.make_mcqs(title)
+        if not mcqs:
+            return err("Could not generate questions, try again", 502)
+        return jsonify({"title": title, "mcqs": mcqs})
+    except services.NotFound:
+        return err("Paper not found", 404)
+    except Exception as e:
+        log.exception("mcq failed")
+        return server_error(e)
+
+
+@app.route("/chatbot", methods=["POST"])
+def chatbot():
+    body = request.get_json(silent=True) or {}
+    query = (body.get("query") or "").strip()
+    if not query:
+        return err("Query is required", 400)
+    try:
+        result = services.answer(query, body.get("title") or None)
+        return jsonify({"query": query, **result})
+    except Exception as e:
+        log.exception("chatbot failed")
+        return server_error(e)
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(port=5000, debug=True)

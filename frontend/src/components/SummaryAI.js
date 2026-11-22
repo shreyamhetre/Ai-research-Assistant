@@ -1,131 +1,70 @@
-// SummaryAI.js
-import React, { useState, useEffect } from "react";
-import { Box, Typography, Button, CircularProgress, Paper, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Alert, Box, Button, CircularProgress, Paper, Skeleton, Typography } from '@mui/material';
+import ReactMarkdown from 'react-markdown';
+import { api } from '../api';
+import { colors } from '../theme';
+import { useTitles } from '../hooks';
+import PageHeader from './PageHeader';
+import PaperSelect from './PaperSelect';
 
 const SummaryAI = () => {
-    const [summary, setSummary] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [titles, setTitles] = useState([]);
-    const [selectedTitle, setSelectedTitle] = useState('');
+  const { titles, error: listError } = useTitles();
+  const [selected, setSelected] = useState('');
+  const [summary, setSummary] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-    useEffect(() => {
-        // Fetch titles on component mount
-        const fetchTitles = async () => {
-            try {
-                const response = await fetch('http://localhost:5000/fetch-titles');
-                const data = await response.json();
-                if (response.ok && data.titles.length > 0) {
-                    setTitles(data.titles);
-                    setSelectedTitle(data.titles[0]); // Auto-select the first title
-                }
-            } catch (error) {
-                console.error('Error fetching titles:', error);
-                setError('Failed to load paper titles');
-            }
-        };
-        fetchTitles();
-    }, []);
+  useEffect(() => {
+    if (!selected && titles.length) setSelected(titles[0]);
+  }, [titles, selected]);
 
-    const generateSummary = async () => {
-        if (!selectedTitle) {
-            setError('Please select a paper');
-            return;
-        }
-        setLoading(true);
-        setError('');
-        try {
-            const response = await fetch('http://localhost:5000/summary', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ title: selectedTitle }),
-            });
-            const data = await response.json();
-            if (response.ok) {
-                setSummary(data.summary);
-            } else {
-                setError(data.error || 'An error occurred while generating the summary');
-            }
-        } catch (error) {
-            console.error('Summary generation error:', error);
-            setError(`An error occurred while generating the summary: ${error.message}`);
-        } finally {
-            setLoading(false);
-        }
-    };
+  const generate = async () => {
+    setLoading(true);
+    setError('');
+    setSummary('');
+    try {
+      const data = await api.summary(selected);
+      setSummary(data.summary);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return (
-        <Box style={{ padding: '20px', backgroundColor: '#1e1e1e', color: "#ffffff", height: 'auto', display: 'flex', flexDirection: 'column', position: 'relative', alignItems: 'center' }}>
-            <Box sx={{ marginLeft: '10px', alignSelf: 'flex-start', mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={generateSummary}
-                    disabled={loading || !selectedTitle}
-                    sx={{ 
-                        fontSize: '14px',
-                        fontFamily: 'Poppins, sans-serif',
-                    }}
-                >
-                    {loading ? <CircularProgress size={24} sx={{ color: "rgb(43, 43, 243)" }} /> : "Generate Summary"}
-                </Button>
-                <FormControl sx={{ minWidth: 200 }}>
-                    <InputLabel sx={{ color: '#b0b0b0' }}>Select Paper</InputLabel>
-                    <Select
-                        value={selectedTitle}
-                        onChange={(e) => setSelectedTitle(e.target.value)}
-                        label="Select Paper"
-                        disabled={loading || titles.length === 0}
-                        sx={{
-                            color: '#ffffff',
-                            '& .MuiOutlinedInput-root': {
-                                '& fieldset': { borderColor: '#3f51b5' },
-                                '&:hover fieldset': { borderColor: '#3f51b5' },
-                                '&.Mui-focused fieldset': { borderColor: '#3f51b5' },
-                            },
-                            '& .MuiSelect-icon': { color: '#3f51b5' },
-                        }}
-                    >
-                        {titles.map((title) => (
-                            <MenuItem key={title} value={title} sx={{ color: '#000000', background: '#ffffff' }}>
-                                {title}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-            </Box>
-            
-            {error && error.trim() !== '' && (
-                <Typography color="error" sx={{ mb: 2 }}>
-                    {error}
-                </Typography>
-            )}
+  return (
+    <Box>
+      <PageHeader title="Summaries" subtitle="A structured overview of any paper in your library.">
+        <PaperSelect titles={titles} value={selected} onChange={setSelected} disabled={loading} />
+        <Button variant="contained" onClick={generate} disabled={loading || !selected}>
+          {loading ? <CircularProgress size={20} color="inherit" /> : 'Summarise'}
+        </Button>
+      </PageHeader>
 
-            {summary && (
-                <Paper 
-                    elevation={3} 
-                    sx={{ 
-                        p: 2, 
-                        bgcolor: "#2a2a2a", 
-                        color: "#ffffff",
-                        flexGrow: 1,
-                        overflow: "auto",
-                        maxHeight: "calc(100% - 60px)", 
-                        width: "95%",
-                    }}
-                >
-                    <Typography variant="h6" gutterBottom>
-                        Summary:
-                    </Typography>
-                    <Typography variant="body1">
-                        {summary}
-                    </Typography>
-                </Paper>
-            )}
-        </Box>
-    );
+      {(error || listError) && <Alert severity="error" sx={{ mb: 2 }}>{error || listError}</Alert>}
+
+      {loading && (
+        <Paper variant="outlined" sx={{ p: 3, bgcolor: colors.surface }}>
+          <Skeleton width="30%" /><Skeleton /><Skeleton /><Skeleton width="80%" />
+        </Paper>
+      )}
+
+      {summary && (
+        <Paper variant="outlined" sx={{ p: 3, bgcolor: colors.surface }}>
+          <Typography variant="overline" color="text.secondary">{selected}</Typography>
+          <Box className="md" sx={{ mt: 1, fontSize: 14.5 }}>
+            <ReactMarkdown>{summary}</ReactMarkdown>
+          </Box>
+        </Paper>
+      )}
+
+      {!summary && !loading && !error && (
+        <Typography color="text.secondary" sx={{ textAlign: 'center', mt: 8 }}>
+          {titles.length ? 'Pick a paper and press Summarise.' : 'Upload a paper in the Library first.'}
+        </Typography>
+      )}
+    </Box>
+  );
 };
 
 export default SummaryAI;

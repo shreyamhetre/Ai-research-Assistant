@@ -1,241 +1,136 @@
-import React, { useState, useEffect } from "react";
-import {    
-  Box, 
-  Typography, 
-  Button, 
-  CircularProgress, 
-  Paper,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-  FormControl,
-  Divider,
-  InputLabel,
-  Select,
-  MenuItem
+import React, { useEffect, useState } from 'react';
+import {
+  Alert, Box, Button, CircularProgress, Paper, Typography, LinearProgress,
 } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import { api } from '../api';
+import { colors } from '../theme';
+import { useTitles } from '../hooks';
+import PageHeader from './PageHeader';
+import PaperSelect from './PaperSelect';
+
+const LETTERS = ['A', 'B', 'C', 'D'];
+
+const optionStyle = (state) => {
+  const base = {
+    display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2,
+    border: `1px solid ${colors.border}`, cursor: 'pointer', textAlign: 'left',
+    bgcolor: 'transparent', color: colors.text, font: 'inherit', width: '100%',
+    transition: 'all .12s',
+  };
+  if (state === 'selected') return { ...base, borderColor: colors.accent, bgcolor: 'rgba(99,102,241,0.12)' };
+  if (state === 'correct') return { ...base, cursor: 'default', borderColor: '#34d399', bgcolor: 'rgba(52,211,153,0.12)' };
+  if (state === 'wrong') return { ...base, cursor: 'default', borderColor: '#f87171', bgcolor: 'rgba(248,113,113,0.12)' };
+  if (state === 'locked') return { ...base, cursor: 'default', opacity: 0.55 };
+  return { ...base, '&:hover': { borderColor: colors.accent } };
+};
 
 const MCQAI = () => {
-    const [mcqs, setMcqs] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    const [selectedAnswers, setSelectedAnswers] = useState({});
-    const [showResults, setShowResults] = useState(false);
-    const [titles, setTitles] = useState([]);
-    const [selectedTitle, setSelectedTitle] = useState('');
+  const { titles, error: listError } = useTitles();
+  const [selected, setSelected] = useState('');
+  const [mcqs, setMcqs] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [checked, setChecked] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-    useEffect(() => {
-        const fetchTitles = async () => {
-            try {
-                const response = await fetch('http://localhost:5000/fetch-titles');
-                const data = await response.json();
-                if (response.ok && data.titles.length > 0) {
-                    setTitles(data.titles);
-                    setSelectedTitle(data.titles[0]); // Auto-select the first title
-                }
-            } catch (error) {
-                console.error('Error fetching titles:', error);
-                setError('Failed to load paper titles');
-            }
-        };
-        fetchTitles();
-    }, []);
+  useEffect(() => {
+    if (!selected && titles.length) setSelected(titles[0]);
+  }, [titles, selected]);
 
-    const generateMCQs = async () => {
-        if (!selectedTitle) {
-            setError("Please select a paper");
-            return;
-        }
+  const generate = async () => {
+    setLoading(true);
+    setError('');
+    setMcqs([]);
+    setAnswers({});
+    setChecked(false);
+    try {
+      const data = await api.mcq(selected);
+      setMcqs(data.mcqs);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setLoading(true);
-        setError("");
-        setMcqs([]);
-        setSelectedAnswers({});
-        setShowResults(false);
+  const score = mcqs.filter((q, i) => answers[i] === q.answer_index).length;
+  const answered = Object.keys(answers).length;
 
-        try {
-            const response = await fetch('http://localhost:5000/createMcq', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ title: selectedTitle }),
-            });
+  return (
+    <Box>
+      <PageHeader title="Quiz" subtitle="Test your understanding with questions generated from a paper.">
+        <PaperSelect titles={titles} value={selected} onChange={setSelected} disabled={loading} />
+        <Button variant="contained" onClick={generate} disabled={loading || !selected}>
+          {loading ? <CircularProgress size={20} color="inherit" /> : mcqs.length ? 'New quiz' : 'Generate'}
+        </Button>
+      </PageHeader>
 
-            const data = await response.json();
+      {(error || listError) && <Alert severity="error" sx={{ mb: 2 }}>{error || listError}</Alert>}
+      {loading && <LinearProgress sx={{ mb: 2 }} />}
 
-            if (response.ok) {
-                setMcqs(data.mcqs);
-            } else {
-                throw new Error(data.error || "Failed to generate MCQs");
-            }
-        } catch (error) {
-            console.error('MCQ generation error:', error);
-            setError(`Error: ${error.message}`);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleAnswerChange = (questionIndex, value) => {
-        setSelectedAnswers({
-            ...selectedAnswers,
-            [questionIndex]: value
-        });
-    };
-
-    const handleCheckAnswers = () => {
-        setShowResults(true);
-    };
-
-    const renderMCQs = () => {
-        return mcqs.map((mcq, index) => {
-            const questionNum = index + 1;
-            const options = mcq.options;
-            const correctAnswer = mcq.correct_answer;
-            const selectedAnswer = selectedAnswers[index];
-            const isCorrect = showResults && selectedAnswer === correctAnswer;
-
-            return (
-                <Box key={index} sx={{ mb: 4 }}>
-                    <Typography variant="h6" gutterBottom sx={{ fontSize: '14px' }}>
-                        Question {questionNum}: {mcq.question}
-                    </Typography>
-
-                    <FormControl component="fieldset" sx={{ ml: 2 }}>
-                        <RadioGroup
-                            value={selectedAnswers[index] || ""}
-                            onChange={(e) => handleAnswerChange(index, e.target.value)}
-                        >
-                            {options.map((option, optIndex) => {
-                                const optionIdentifier = option.split(')')[0] + ')'; // e.g., "a)"
-                                const optionText = option; // Full text, e.g., "a) Conversational fluency and adaptability"
-                                return (
-                                    <FormControlLabel
-                                        key={optIndex}
-                                        value={optionIdentifier} // Use "a)", "b)", etc.
-                                        control={<Radio sx={{ color: 'white' }} />}
-                                        label={optionText} // Display full text
-                                        sx={{
-                                            color: showResults && optionIdentifier === correctAnswer ? 'rgb(144, 238, 144)' : 
-                                                  (showResults && selectedAnswer === optionIdentifier && optionIdentifier !== correctAnswer) ? 'error.main' : 'inherit',
-                                            '& .MuiTypography-root': { fontSize: '12px' }
-                                        }}
-                                    />
-                                );
-                            })}
-                        </RadioGroup>
-                    </FormControl>
-
-                    {showResults && (
-                        <Typography 
-                            variant="body2" 
-                            sx={{ 
-                                mt: 1, 
-                                color: isCorrect ? 'success.main' : 'error.main',
-                                fontWeight: 'bold',
-                                fontSize: '12px'
-                            }}
-                        >
-                            {isCorrect ? "Correct!" : `Wrong! The correct answer is: ${correctAnswer}`}
-                        </Typography>
-                    )}
-                    
-                    <Divider sx={{ mt: 2 }} />
-                </Box>
-            );
-        });
-    };
-
-    return (
-        <Box
-            style={{
-                padding: "10px",
-                backgroundColor: "#1e1e1e",
-                color: "#ffffff",
-                height: "80vh",
-                display: "flex",
-                flexDirection: "column",
-                overflow: "auto", // Changed to "auto" to allow scrolling
-            }}
-        >
-            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={generateMCQs}
-                    disabled={loading || !selectedTitle}
-                    sx={{ mt: 2, mr: 2, fontSize: '14px' }}
-                >
-                    {loading ? <CircularProgress size={24} sx={{ color: "rgb(43, 43, 243)" }} /> : "Generate MCQs"}
-                </Button>
-                <FormControl sx={{ minWidth: 200 }}>
-                    <InputLabel sx={{ color: '#b0b0b0' }}>Select Paper</InputLabel>
-                    <Select
-                        value={selectedTitle}
-                        onChange={(e) => setSelectedTitle(e.target.value)}
-                        label="Select Paper"
-                        disabled={loading || titles.length === 0}
-                        sx={{
-                            color: '#ffffff',
-                            '& .MuiOutlinedInput-root': {
-                                '& fieldset': { borderColor: '#3f51b5' },
-                                '&:hover fieldset': { borderColor: '#3f51b5' },
-                                '&.Mui-focused fieldset': { borderColor: '#3f51b5' },
-                            },
-                            '& .MuiSelect-icon': { color: '#3f51b5' },
-                        }}
+      {mcqs.length > 0 && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {mcqs.map((q, i) => (
+            <Paper key={i} variant="outlined" sx={{ p: 3, bgcolor: colors.surface }}>
+              <Typography variant="caption" color="text.secondary">Question {i + 1} of {mcqs.length}</Typography>
+              <Typography sx={{ fontWeight: 600, mb: 2, mt: 0.5 }}>{q.question}</Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {q.options.map((opt, j) => {
+                  let state = answers[i] === j ? 'selected' : 'idle';
+                  if (checked) {
+                    if (j === q.answer_index) state = 'correct';
+                    else if (answers[i] === j) state = 'wrong';
+                    else state = 'locked';
+                  }
+                  return (
+                    <Box
+                      component="button" key={j} sx={optionStyle(state)}
+                      onClick={() => !checked && setAnswers({ ...answers, [i]: j })}
                     >
-                        {titles.map((title) => (
-                            <MenuItem key={title} value={title} sx={{ color: '#000000', background: '#ffffff' }}>
-                                {title}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-            </Box>
-
-            {error && (
-                <Typography color="error" sx={{ mb: 2 }}>
-                    {error}
+                      <Typography component="span" sx={{ fontWeight: 700, color: colors.muted, width: 18 }}>
+                        {LETTERS[j]}
+                      </Typography>
+                      <Typography component="span" sx={{ flex: 1, fontSize: 14 }}>{opt}</Typography>
+                      {checked && state === 'correct' && <CheckCircleIcon sx={{ color: '#34d399' }} fontSize="small" />}
+                      {checked && state === 'wrong' && <CancelIcon sx={{ color: '#f87171' }} fontSize="small" />}
+                    </Box>
+                  );
+                })}
+              </Box>
+              {checked && q.explanation && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                  {q.explanation}
                 </Typography>
-            )}
+              )}
+            </Paper>
+          ))}
 
-            {mcqs.length > 0 && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Button
-                        variant="outlined"
-                        onClick={handleCheckAnswers}
-                        sx={{ 
-                            mt: 2, 
-                            fontSize: '14px',
-                            color: 'rgb(144, 238, 144)', 
-                            borderColor: 'rgb(144, 238, 144)',
-                            '&:hover': {
-                                borderColor: 'rgb(144, 238, 144)',
-                                backgroundColor: 'rgba(144, 238, 144, 0.1)',
-                            }
-                        }}
-                    >
-                        Check Answers
-                    </Button>
-                    <Paper 
-                        elevation={6} 
-                        sx={{ 
-                            p: 2, 
-                            bgcolor: "#2a2a2a", 
-                            color: "#ffffff",
-                            overflow: "auto", // Keep this to allow scrolling if needed
-                            border: '1px solid rgb(98, 103, 98)',
-                            boxSizing: "border-box",
-                        }}
-                    >
-                        {renderMCQs()}
-                    </Paper>
-                </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {!checked ? (
+              <Button variant="contained" disabled={answered < mcqs.length} onClick={() => setChecked(true)}>
+                Check answers
+              </Button>
+            ) : (
+              <Typography sx={{ fontWeight: 700, fontSize: 18 }}>
+                Score: {score} / {mcqs.length}
+              </Typography>
             )}
+            {!checked && (
+              <Typography variant="body2" color="text.secondary">{answered} / {mcqs.length} answered</Typography>
+            )}
+          </Box>
         </Box>
-    );
+      )}
+
+      {!mcqs.length && !loading && !error && (
+        <Typography color="text.secondary" sx={{ textAlign: 'center', mt: 8 }}>
+          {titles.length ? 'Pick a paper and generate a quiz.' : 'Upload a paper in the Library first.'}
+        </Typography>
+      )}
+    </Box>
+  );
 };
 
 export default MCQAI;

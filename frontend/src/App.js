@@ -1,76 +1,36 @@
 import React, { useState } from 'react';
-import { Box, Snackbar, Alert } from '@mui/material';
-import Navbar from './components/Navbar';
+import { Box, ThemeProvider, CssBaseline } from '@mui/material';
+import theme, { colors } from './theme';
 import Sidebar from './components/Sidebar';
 import UploadPlayground from './components/UploadPlayground';
 import SummaryAI from './components/SummaryAI';
 import ChatbotAI from './components/ChatbotAI';
 import MCQAI from './components/MCQAI';
 
+const PAGES = {
+  upload: UploadPlayground,
+  summary: SummaryAI,
+  chatbot: ChatbotAI,
+  mcq: MCQAI,
+};
+
 const App = () => {
-  const [activeTab, setactiveTab] = useState('upload');
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success',
-  });
-
-  const handleTabChange = (tab) => {
-    setactiveTab(tab);
-  };
-
-  const handleSnackbarClose = () => {
-    setSnackbar({
-      ...snackbar,
-      open: false,
-    });
-  };
-
-  const renderPlayground = () => {
-    switch (activeTab) {
-      case 'summary':
-        return <SummaryAI />;
-      case 'chatbot':
-        return <ChatbotAI />;
-      case 'mcq':
-        return <MCQAI />;
-      case 'upload':
-      default:
-        return <UploadPlayground />;
-    }
-  };
+  const [activeTab, setActiveTab] = useState('upload');
+  const Page = PAGES[activeTab];
 
   return (
-    <Box
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        backgroundColor: '#1e1e1e',
-      }}
-    >
-      <Navbar />
-      <Box style={{ display: 'flex', flex: 1 }}>
-        <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
-        <Box style={{ flex: 1, padding: '10px' }}>
-          {renderPlayground()}
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ display: 'flex', height: '100vh', bgcolor: colors.bg }}>
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <Box component="main" sx={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+          <Box sx={{ maxWidth: 900, mx: 'auto', p: { xs: 2, md: 4 }, height: '100%', boxSizing: 'border-box' }}>
+            <Page />
+          </Box>
         </Box>
       </Box>
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+    </ThemeProvider>
   );
 };
+
 export default App;
