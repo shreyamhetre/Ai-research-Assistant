@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, LinearProgress, Typography } from '@mui/material';
 import { api } from '../api';
 import { colors, serif } from '../theme';
@@ -24,7 +24,7 @@ const Letter = ({ children, state }) => (
   <Box
     sx={{
       width: 24, height: 24, borderRadius: 1.5, display: 'grid', placeItems: 'center', flexShrink: 0, fontSize: 12, fontWeight: 600,
-      color: state === 'correct' ? '#fff' : state === 'wrong' ? '#fff' : colors.muted,
+      color: state === 'correct' || state === 'wrong' ? '#fff' : colors.muted,
       bgcolor: state === 'correct' ? colors.good : state === 'wrong' ? colors.bad : colors.sunken,
     }}
   >
@@ -35,20 +35,43 @@ const Letter = ({ children, state }) => (
 const MCQAI = () => {
   const { titles, paper, error: listError } = useApp();
   const selected = paper || titles[0] || '';
+  const [mode, setMode] = useState('new'); // 'new' | 'review'
   const [mcqs, setMcqs] = useState([]);
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState({});
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+  const [saved, setSaved] = useState({ due: 0, total: 0 });
 
-  const generate = async () => {
-    setLoading(true);
-    setError('');
+  const refreshCounts = useCallback(async () => {
+    if (!selected) return;
+    try {
+      const d = await api.dueCards(selected);
+      setSaved({ due: d.cards.length, total: d.total });
+    } catch {
+      /* counts are a nicety */
+    }
+  }, [selected]);
+
+  useEffect(() => {
+    refreshCounts();
+  }, [refreshCounts, done]);
+
+  const reset = (m) => {
+    setMode(m);
     setMcqs([]);
     setAnswers({});
     setIdx(0);
     setDone(false);
+    setError('');
+    setInfo('');
+  };
+
+  const startNew = async () => {
+    reset('new');
+    setLoading(true);
     try {
       setMcqs((await api.mcq(selected)).mcqs);
     } catch (e) {
@@ -56,6 +79,26 @@ const MCQAI = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const startReview = async () => {
+    reset('review');
+    setLoading(true);
+    try {
+      const d = await api.dueCards(selected);
+      if (d.cards.length) setMcqs(d.cards);
+      else setInfo(d.total ? 'Nothing is due right now. Come back later, or start a new quiz.' : 'No saved questions yet. Start a new quiz first.');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pick = (j) => {
+    const q = mcqs[idx];
+    setAnswers({ ...answers, [idx]: j });
+    if (q.id) api.review(q.id, j === q.answer_index).catch(() => {}); // reschedules the card
   };
 
   const q = mcqs[idx];
@@ -66,24 +109,34 @@ const MCQAI = () => {
 
   return (
     <Box>
-      <PageHeader title="Quiz" subtitle="Five questions generated from the paper, with instant feedback.">
+      <PageHeader title="Quiz" subtitle="Questions from your paper. Answers are saved and come back on a spaced schedule.">
         <PaperSelect value={selected} disabled={loading} />
-        <Button variant="contained" onClick={generate} disabled={loading || !selected}>
-          {loading ? <CircularProgress size={18} color="inherit" /> : mcqs.length ? 'New quiz' : 'Start quiz'}
-        </Button>
       </PageHeader>
 
+      <Box sx={{ display: 'flex', gap: 1.5, mb: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Button variant="contained" onClick={startNew} disabled={loading || !selected}>
+          {loading && mode === 'new' ? <CircularProgress size={18} color="inherit" /> : 'New quiz'}
+        </Button>
+        <Button variant="outlined" color="primary" onClick={startReview} disabled={loading || !selected || saved.total === 0}>
+          Review{saved.due > 0 ? ` (${saved.due} due)` : ''}
+        </Button>
+        {saved.total > 0 && (
+          <Typography sx={{ fontSize: 13, color: colors.faint }}>{saved.total} saved questions</Typography>
+        )}
+      </Box>
+
       {(error || listError) && <Alert severity="error" sx={{ mb: 2 }}>{error || listError}</Alert>}
+      {info && <Alert severity="info" sx={{ mb: 2 }}>{info}</Alert>}
       {loading && <LinearProgress sx={{ borderRadius: 1 }} />}
 
       {q && !done && (
         <Box sx={{ maxWidth: 680 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="overline" sx={{ color: colors.muted }}>Question {idx + 1} of {mcqs.length}</Typography>
-          </Box>
+          <Typography variant="overline" sx={{ color: colors.muted }}>
+            {mode === 'review' ? 'Review · ' : ''}Question {idx + 1} of {mcqs.length}
+          </Typography>
           <LinearProgress
             variant="determinate" value={((idx + (revealed ? 1 : 0)) / mcqs.length) * 100}
-            sx={{ height: 4, borderRadius: 2, mb: 4, bgcolor: colors.border, '& .MuiLinearProgress-bar': { bgcolor: colors.accent } }}
+            sx={{ height: 4, borderRadius: 2, mt: 1, mb: 4, bgcolor: colors.border, '& .MuiLinearProgress-bar': { bgcolor: colors.accent } }}
           />
           <Typography sx={{ fontFamily: serif, fontSize: 26, fontWeight: 500, lineHeight: 1.3, letterSpacing: '-0.01em', mb: 3 }}>
             {q.question}
@@ -94,7 +147,7 @@ const MCQAI = () => {
               let state = 'idle';
               if (revealed) state = j === q.answer_index ? 'correct' : j === picked ? 'wrong' : 'locked';
               return (
-                <Box component="button" key={j} sx={optionSx(state)} onClick={() => !revealed && setAnswers({ ...answers, [idx]: j })}>
+                <Box component="button" key={j} sx={optionSx(state)} onClick={() => !revealed && pick(j)}>
                   <Letter state={state}>{LETTERS[j]}</Letter>
                   <Typography component="span" sx={{ fontSize: 15, lineHeight: 1.5, color: colors.ink }}>{opt}</Typography>
                 </Box>
@@ -125,7 +178,8 @@ const MCQAI = () => {
             {score}<Box component="span" sx={{ color: colors.faint, fontSize: 36 }}> / {mcqs.length}</Box>
           </Typography>
           <Typography sx={{ color: colors.muted, mt: 1, mb: 4 }}>
-            {score === mcqs.length ? 'A perfect score.' : score / mcqs.length >= 0.6 ? 'Solid grasp of the paper.' : 'Worth another read, then try a fresh quiz.'}
+            {score === mcqs.length ? 'A perfect score.' : score / mcqs.length >= 0.6 ? 'Solid grasp of the paper.' : 'Worth another read, then try again.'}
+            {' '}Missed questions return for review soon; the ones you know come back later.
           </Typography>
 
           <Box sx={{ borderTop: `1px solid ${colors.border}` }}>
@@ -144,17 +198,20 @@ const MCQAI = () => {
               );
             })}
           </Box>
-          <Button variant="contained" sx={{ mt: 4 }} onClick={generate}>Take a new quiz</Button>
+          <Box sx={{ display: 'flex', gap: 1.5, mt: 4 }}>
+            <Button variant="contained" onClick={startNew}>Take a new quiz</Button>
+            <Button variant="outlined" color="primary" onClick={startReview}>Review due questions</Button>
+          </Box>
         </Box>
       )}
 
-      {!mcqs.length && !loading && !error && (
-        <Box sx={{ textAlign: 'center', mt: 10 }}>
+      {!mcqs.length && !loading && !error && !info && (
+        <Box sx={{ textAlign: 'center', mt: 8 }}>
           <Typography sx={{ fontFamily: serif, fontSize: 22, mb: 0.5 }}>
             {titles.length ? 'Ready when you are' : 'Your library is empty'}
           </Typography>
           <Typography sx={{ color: colors.muted, fontSize: 14.5 }}>
-            {titles.length ? 'Choose a paper and start a quiz.' : 'Upload a paper in the Library first.'}
+            {titles.length ? 'Start a new quiz, or review the questions you have saved.' : 'Upload a paper in the Library first.'}
           </Typography>
         </Box>
       )}

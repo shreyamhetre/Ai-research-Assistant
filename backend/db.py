@@ -96,20 +96,67 @@ def get_paper_text(title: str) -> Optional[str]:
     return "\n".join(r[0] for r in rows) if rows else None
 
 
+def _row_to_hit(r) -> Dict:
+    return {"id": r[0], "paper_id": r[1], "title": r[2], "page": r[3], "chunk_idx": r[4],
+            "content": r[5], "score": float(r[6])}
+
+
 def search(embedding: List[float], k: int, title: Optional[str] = None) -> List[Dict]:
+    """Vector search. score = cosine similarity (higher is better)."""
     sql = (
-        "SELECT p.title, c.page, c.content, c.embedding <=> %s::vector AS dist "
+        "SELECT c.id, c.paper_id, p.title, c.page, c.chunk_idx, c.content, "
+        "1 - (c.embedding <=> %s::vector) AS score "
         "FROM chunks c JOIN papers p ON p.id = c.paper_id "
     )
     params: list = [_vec(embedding)]
     if title:
         sql += "WHERE p.title = %s "
         params.append(title)
-    sql += "ORDER BY dist LIMIT %s"
+    sql += "ORDER BY c.embedding <=> %s::vector LIMIT %s"
+    params += [_vec(embedding), k]
+    with cursor() as cur:
+        cur.execute(sql, params)
+        hits = [_row_to_hit(r) for r in cur.fetchall()]
+    for h in hits:
+        h["sim"] = h["score"]  # cosine similarity, kept through fusion and reranking
+    return hits
+
+
+def search_text(tsquery: str, k: int, title: Optional[str] = None) -> List[Dict]:
+    """Full-text search. `tsquery` must be a sanitised 'a | b | c' string. score = ts_rank_cd."""
+    if not tsquery:
+        return []
+    sql = (
+        "SELECT c.id, c.paper_id, p.title, c.page, c.chunk_idx, c.content, "
+        "ts_rank_cd(c.tsv, to_tsquery('english', %s)) AS score "
+        "FROM chunks c JOIN papers p ON p.id = c.paper_id "
+        "WHERE c.tsv @@ to_tsquery('english', %s) "
+    )
+    params: list = [tsquery, tsquery]
+    if title:
+        sql += "AND p.title = %s "
+        params.append(title)
+    sql += "ORDER BY score DESC LIMIT %s"
     params.append(k)
     with cursor() as cur:
         cur.execute(sql, params)
-        return [
-            {"title": r[0], "page": r[1], "content": r[2], "distance": float(r[3])}
-            for r in cur.fetchall()
-        ]
+        return [_row_to_hit(r) for r in cur.fetchall()]
+
+
+def get_neighbors(keys: List[Tuple[int, int]]) -> Dict[Tuple[int, int], Dict]:
+    """Fetch chunks by (paper_id, chunk_idx). Returns {(paper_id, chunk_idx): {page, content}}."""
+    if not keys:
+        return {}
+    with cursor() as cur:
+        cur.execute(
+            "SELECT paper_id, chunk_idx, page, content FROM chunks "
+            "WHERE (paper_id, chunk_idx) IN %s",
+            (tuple(keys),),
+        )
+        return {(r[0], r[1]): {"page": r[2], "content": r[3]} for r in cur.fetchall()}
+
+
+def delete_paper(title: str) -> bool:
+    with cursor() as cur:
+        cur.execute("DELETE FROM papers WHERE title = %s", (title,))
+        return cur.rowcount > 0

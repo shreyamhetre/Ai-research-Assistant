@@ -20,8 +20,24 @@ class Config:
 
     MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "25"))
 
-    CHUNK_CHARS = 1800
-    CHUNK_OVERLAP = 250
-    TOP_K = 8
-    # cosine distance above this is treated as "not in the papers"
-    MAX_DISTANCE = 0.50
+    # Chunking
+    CHUNK_CHARS = 900
+    CHUNK_OVERLAP = 150
+
+    # Retrieval: candidates from each retriever -> fused -> reranked -> top-k
+    N_VECTOR = 30
+    N_KEYWORD = 30
+    N_RERANK = 20          # ~3 s on CPU; hybrid recall@10 was already 100% on the eval set
+    TOP_K = 5
+    RERANK_MODEL = os.getenv("RERANK_MODEL", "BAAI/bge-reranker-base")
+    # Cheap pre-check for clearly off-topic questions: both signals must be low.
+    # (Reranker scores for abstract questions are low even when correct, so this is only a
+    # coarse filter; the LLM decides whether the excerpts really answer the question.)
+    OFF_TOPIC_RERANK = 0.005
+    OFF_TOPIC_SIM = 0.50
+
+    # Chat memory: how many previous messages are sent to the model
+    HISTORY_MESSAGES = 6
+
+    # Multi-paper comparison (CrewAI)
+    COMPARE_MAX_PAPERS = 4

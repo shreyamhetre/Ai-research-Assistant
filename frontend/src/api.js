@@ -19,6 +19,11 @@ const post = (path, body) =>
     body: JSON.stringify(body),
   });
 
+const q = encodeURIComponent;
+
+/** The stored PDF, optionally opened at a page. */
+export const pdfUrl = (title, page) => `${BASE}/paper-file?title=${q(title)}${page ? `#page=${page}` : ''}`;
+
 export const api = {
   health: () => request('/health'),
   papers: () => request('/papers').then((d) => d.papers),
@@ -28,7 +33,11 @@ export const api = {
     form.append('title', title);
     return request('/upload', { method: 'POST', body: form });
   },
-  summary: (title) => post('/summary', { title }),
+  deletePaper: (title) => request(`/papers?title=${q(title)}`, { method: 'DELETE' }),
+  summary: (title, refresh = false) => post('/summary', { title, refresh }),
   mcq: (title) => post('/createMcq', { title }),
-  chat: (query, title) => post('/chatbot', { query, title: title || undefined }),
+  dueCards: (title) => request(`/review/due${title ? `?title=${q(title)}` : ''}`),
+  review: (id, correct) => post('/review', { id, correct }),
+  chat: (query, title, history) => post('/chatbot', { query, title: title || undefined, history }),
+  compare: (titles, topic) => post('/compare', { titles, topic }),
 };

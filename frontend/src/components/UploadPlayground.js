@@ -3,7 +3,7 @@ import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogTitle, Skeleton, TextField, Typography,
 } from '@mui/material';
-import { api } from '../api';
+import { api, pdfUrl } from '../api';
 import { colors, serif } from '../theme';
 import { useApp } from '../hooks';
 import PageHeader from './PageHeader';
@@ -30,6 +30,8 @@ const UploadPlayground = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [toDelete, setToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const pick = (f) => {
     if (!f) return;
@@ -86,6 +88,21 @@ const UploadPlayground = () => {
     go(tab);
   };
 
+  const confirmDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.deletePaper(toDelete);
+      setNotice(`Deleted “${toDelete}”.`);
+      setToDelete(null);
+      refresh();
+    } catch (e) {
+      setError(e.message);
+      setToDelete(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const picker = (
     <input
       ref={inputRef} type="file" accept=".pdf,application/pdf" hidden
@@ -140,6 +157,8 @@ const UploadPlayground = () => {
                 <RowAction onClick={() => open(p.title, 'ask')}>Ask</RowAction>
                 <RowAction onClick={() => open(p.title, 'summary')}>Summarise</RowAction>
                 <RowAction onClick={() => open(p.title, 'quiz')}>Quiz</RowAction>
+                <RowAction onClick={() => window.open(pdfUrl(p.title), '_blank', 'noopener')}>PDF</RowAction>
+                <RowAction onClick={() => setToDelete(p.title)}>Delete</RowAction>
               </Box>
             </Box>
           ))}
@@ -156,6 +175,21 @@ const UploadPlayground = () => {
           <Typography sx={{ fontFamily: serif, fontSize: 30, color: colors.accent }}>Drop PDF to add it</Typography>
         </Box>
       )}
+
+      <Dialog open={!!toDelete} onClose={() => !deleting && setToDelete(null)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontFamily: serif, fontSize: 24, fontWeight: 500 }}>Delete this paper?</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: colors.muted, fontSize: 14.5 }}>
+            “{toDelete}” and its passages, saved summary and quiz cards will be removed. This can’t be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setToDelete(null)} disabled={deleting} color="inherit">Cancel</Button>
+          <Button variant="contained" onClick={confirmDelete} disabled={deleting} sx={{ bgcolor: colors.bad, '&:hover': { bgcolor: '#962d26' } }}>
+            {deleting ? <CircularProgress size={20} color="inherit" /> : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={!!file} onClose={close} fullWidth maxWidth="xs">
         <DialogTitle sx={{ fontFamily: serif, fontSize: 24, fontWeight: 500 }}>Add paper</DialogTitle>

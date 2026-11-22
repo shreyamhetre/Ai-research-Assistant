@@ -1,0 +1,26 @@
+{
+  "title": "What Is AI Anyway (Schank)",
+  "positive": [
+    {"q": "What are the ten fundamental problems of AI according to Schank?", "any_of": ["control of combinatorial explosion"]},
+    {"q": "What are the two main goals of AI?", "any_of": ["second goal is to find out"]},
+    {"q": "Which features does Schank say an intelligent entity should have?", "any_of": ["internal knowledge, world knowledge"]},
+    {"q": "What is the paradox of the expert?", "any_of": ["paradox of the expert"]},
+    {"q": "Which program created recipes and how?", "any_of": ["chef created recipes", "exercised creativity in quite another domain"]},
+    {"q": "What did the Tale-Spin program do?", "any_of": ["goal interactions among the characters", "created stories"]},
+    {"q": "Why does Schank say a program that does not learn is not AI?", "any_of": ["does not learn is no ai program"]},
+    {"q": "What is the difference between the applications route and the scientific route?", "any_of": ["i call the applications route", "what i call the scientific route"]},
+    {"q": "What is wrong with expert systems according to the paper?", "any_of": ["lacked what i term internal knowledge and creativity"]},
+    {"q": "What does Schank mean by generalization?", "any_of": ["connect experiences that are not obviously connectable"]},
+    {"q": "Which example shows a program failing to change with experience?", "any_of": ["reads the same story three times in a row"]},
+    {"q": "Why is indexing so important?", "any_of": ["indexing is a central"]},
+    {"q": "What does the paper say about curiosity?", "any_of": ["wonder why"]},
+    {"q": "Is AI mathematics, software engineering, linguistics or psychology?", "any_of": ["is ai mathematics"]},
+    {"q": "Which Yale programs deal with memory organization and indexing?", "any_of": ["cyrus"]}
+  ],
+  "negative": [
+    "How do I bake sourdough bread?",
+    "What is the capital of France?",
+    "Explain how gradient descent trains a neural network",
+    "Who won the 2018 football world cup?"
+  ]
+}

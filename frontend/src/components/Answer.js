@@ -1,27 +1,32 @@
 import React from 'react';
 import { Box, Tooltip } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
+import { pdfUrl } from '../api';
 import { colors } from '../theme';
 
+/** Numbered badge; hover shows the passage, click opens the PDF at that page. */
 const Cite = ({ n, source }) => (
   <Tooltip
-    arrow={false}
     title={
       source ? (
         <>
           <strong>{source.title} · p.{source.page}</strong>
           <br />
           {source.snippet}…
+          <br />
+          <em>Click to open the PDF</em>
         </>
       ) : ''
     }
   >
     <Box
       component="sup"
+      onClick={() => source && window.open(pdfUrl(source.title, source.page), '_blank', 'noopener')}
       sx={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 16, height: 16, px: 0.5,
-        mx: '2px', borderRadius: 1, fontSize: 10.5, fontWeight: 600, lineHeight: 1, cursor: 'default',
+        mx: '2px', borderRadius: 1, fontSize: 10.5, fontWeight: 600, lineHeight: 1, cursor: source ? 'pointer' : 'default',
         bgcolor: colors.accentSoft, color: colors.accent, verticalAlign: 'baseline', position: 'relative', top: -2,
+        '&:hover': source ? { bgcolor: colors.accent, color: '#fff' } : {},
       }}
     >
       {n}

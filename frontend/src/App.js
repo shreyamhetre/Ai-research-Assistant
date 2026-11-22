@@ -7,8 +7,9 @@ import UploadPlayground from './components/UploadPlayground';
 import SummaryAI from './components/SummaryAI';
 import ChatbotAI from './components/ChatbotAI';
 import MCQAI from './components/MCQAI';
+import CompareAI from './components/CompareAI';
 
-const PAGES = { library: UploadPlayground, ask: ChatbotAI, summary: SummaryAI, quiz: MCQAI };
+const PAGES = { library: UploadPlayground, ask: ChatbotAI, summary: SummaryAI, compare: CompareAI, quiz: MCQAI };
 const fromHash = () => {
   const id = window.location.hash.replace('#/', '');
   return TABS.some((t) => t.id === id) ? id : 'library';

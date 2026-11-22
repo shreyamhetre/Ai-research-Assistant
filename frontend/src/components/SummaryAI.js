@@ -28,8 +28,10 @@ const SummaryAI = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await api.summary(selected);
-      setResult({ title: selected, text: data.summary });
+      // First request reuses the saved summary; pressing Regenerate asks for a fresh one.
+      const refresh = result.title === selected && !!result.text;
+      const data = await api.summary(selected, refresh);
+      setResult({ title: selected, text: data.summary, cached: data.cached });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -67,6 +69,7 @@ const SummaryAI = () => {
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2, borderBottom: `1px solid ${colors.border}`, pb: 1.5, mb: 3 }}>
             <Typography sx={{ fontFamily: serif, fontSize: 18, fontWeight: 500, flex: 1, minWidth: 0 }} noWrap>{result.title}</Typography>
+            {result.cached && <Typography sx={{ fontSize: 12.5, color: colors.faint }}>Saved summary</Typography>}
             <Button size="small" color="inherit" onClick={copy} sx={{ color: colors.muted }}>{copied ? 'Copied' : 'Copy'}</Button>
             <Button size="small" color="inherit" onClick={() => download(result.title, result.text)} sx={{ color: colors.muted }}>
               Download .md

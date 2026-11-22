@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, IconButton, TextField, Typography } from '@mui/material';
+import { Box, Button, IconButton, TextField, Typography } from '@mui/material';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import { api } from '../api';
+import { api, pdfUrl } from '../api';
 import { colors, serif } from '../theme';
 import { copyText, useApp } from '../hooks';
 import PageHeader from './PageHeader';
@@ -22,7 +22,13 @@ const Sources = ({ sources }) => (
       {sources.map((s) => (
         <Typography key={s.id} sx={{ fontSize: 13, color: colors.muted, display: 'flex', gap: 1 }}>
           <Box component="span" sx={{ color: colors.accent, fontWeight: 600, minWidth: 14 }}>{s.id}</Box>
-          <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Box
+            component="a" href={pdfUrl(s.title, s.page)} target="_blank" rel="noreferrer"
+            sx={{
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'inherit', textDecoration: 'none',
+              '&:hover': { color: colors.accent, textDecoration: 'underline' },
+            }}
+          >
             {s.title} · p.{s.page}
           </Box>
         </Typography>
@@ -102,11 +108,16 @@ const ChatbotAI = () => {
   const send = async (text) => {
     const q = (text ?? query).trim();
     if (!q || loading) return;
+    // Recent turns give follow-up questions ("and why?") their context.
+    const history = messages
+      .filter((m) => !m.isError)
+      .slice(-6)
+      .map((m) => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text }));
     setMessages((m) => [...m, { sender: 'user', text: q }]);
     setQuery('');
     setLoading(true);
     try {
-      const data = await api.chat(q, paper);
+      const data = await api.chat(q, paper, history);
       setMessages((m) => [...m, { sender: 'bot', text: data.response, sources: data.sources, grounded: data.grounded }]);
     } catch (e) {
       setMessages((m) => [...m, { sender: 'bot', text: e.message, isError: true }]);
@@ -120,6 +131,9 @@ const ChatbotAI = () => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 156px)' }}>
       <PageHeader title="Ask" subtitle="Answers come from your papers, with numbered citations.">
+        {messages.length > 0 && (
+          <Button color="inherit" onClick={() => setMessages([])} sx={{ color: colors.muted }}>New chat</Button>
+        )}
         <PaperSelect allowAll />
       </PageHeader>
 

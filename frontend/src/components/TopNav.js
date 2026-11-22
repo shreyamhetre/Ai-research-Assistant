@@ -7,6 +7,7 @@ export const TABS = [
   { id: 'library', label: 'Library' },
   { id: 'ask', label: 'Ask' },
   { id: 'summary', label: 'Summaries' },
+  { id: 'compare', label: 'Compare' },
   { id: 'quiz', label: 'Quiz' },
 ];
 

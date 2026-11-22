@@ -1,7 +1,12 @@
 flask>=3.0
 flask-cors>=4.0
+gunicorn>=22.0
 openai>=1.40
 sentence-transformers>=3.0
 psycopg2-binary>=2.9
 pypdf>=4.0
 python-dotenv>=1.0
+
+# Multi-agent paper comparison. CrewAI needs Python 3.10-3.13; the marker keeps pip from
+# resolving an ancient 0.x release on 3.14. Use a Python 3.12 venv to enable /compare.
+crewai>=0.100,<2; python_version < "3.14"

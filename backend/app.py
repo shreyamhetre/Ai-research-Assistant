@@ -1,9 +1,12 @@
 import logging
+import os
 
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
+import compare
 import db
+import db_extra
 import services
 from config import Config
 
@@ -13,6 +16,17 @@ log = logging.getLogger("app")
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = Config.MAX_UPLOAD_MB * 1024 * 1024
 CORS(app)
+
+_schema_ready = False
+
+
+@app.before_request
+def _bootstrap_schema():
+    """Bring an existing database up to date the first time any request arrives."""
+    global _schema_ready
+    if not _schema_ready and request.endpoint != "health":
+        db_extra.ensure_schema()
+        _schema_ready = True
 
 
 def err(message: str, status: int):
@@ -29,6 +43,10 @@ def server_error(e: Exception):
     return err("Internal server error. See server log.", 500)
 
 
+def body() -> dict:
+    return request.get_json(silent=True) or {}
+
+
 @app.errorhandler(413)
 def too_large(_):
     return err(f"File too large (max {Config.MAX_UPLOAD_MB} MB)", 413)
@@ -39,6 +57,7 @@ def health():
     return jsonify({"status": "ok"})
 
 
+# ------------------------------------------------------------------ library
 @app.route("/upload", methods=["POST"])
 def upload():
     title = (request.form.get("title") or "").strip()
@@ -80,18 +99,44 @@ def papers():
         return server_error(e)
 
 
-def _title_from_body():
-    title = (request.get_json(silent=True) or {}).get("title")
-    return title if title else None
-
-
-@app.route("/summary", methods=["POST"])
-def summary():
-    title = _title_from_body()
+@app.route("/papers", methods=["DELETE"])
+def delete_paper():
+    title = request.args.get("title", "")
     if not title:
         return err("Title is required", 400)
     try:
-        return jsonify({"title": title, "summary": services.summarize(title)})
+        if not db.delete_paper(title):
+            return err("Paper not found", 404)
+        return jsonify({"message": "Deleted"})
+    except Exception as e:
+        log.exception("delete failed")
+        return server_error(e)
+
+
+@app.route("/paper-file", methods=["GET"])
+def paper_file():
+    """The original PDF, so the UI can open a citation at its page (#page=N)."""
+    title = request.args.get("title", "")
+    try:
+        data = db_extra.get_paper_file(title) if title else None
+    except Exception as e:
+        log.exception("paper-file failed")
+        return server_error(e)
+    if not data:
+        return err("Paper not found", 404)
+    return Response(data, mimetype="application/pdf",
+                    headers={"Content-Disposition": "inline; filename=paper.pdf"})
+
+
+# ------------------------------------------------------------------ summaries and quizzes
+@app.route("/summary", methods=["POST"])
+def summary():
+    title = body().get("title")
+    if not title:
+        return err("Title is required", 400)
+    try:
+        text, cached = services.summarize(title, refresh=bool(body().get("refresh")))
+        return jsonify({"title": title, "summary": text, "cached": cached})
     except services.NotFound:
         return err("Paper not found", 404)
     except Exception as e:
@@ -101,7 +146,7 @@ def summary():
 
 @app.route("/createMcq", methods=["POST"])
 def create_mcq():
-    title = _title_from_body()
+    title = body().get("title")
     if not title:
         return err("Title is required", 400)
     try:
@@ -116,19 +161,56 @@ def create_mcq():
         return server_error(e)
 
 
+@app.route("/review/due", methods=["GET"])
+def review_due():
+    try:
+        return jsonify(db_extra.due_cards(request.args.get("title") or None))
+    except Exception as e:
+        log.exception("review/due failed")
+        return server_error(e)
+
+
+@app.route("/review", methods=["POST"])
+def review():
+    b = body()
+    if not isinstance(b.get("id"), int) or not isinstance(b.get("correct"), bool):
+        return err("id (int) and correct (bool) are required", 400)
+    try:
+        result = db_extra.review_card(b["id"], b["correct"])
+        return jsonify(result) if result else err("Card not found", 404)
+    except Exception as e:
+        log.exception("review failed")
+        return server_error(e)
+
+
+# ------------------------------------------------------------------ chat and comparison
 @app.route("/chatbot", methods=["POST"])
 def chatbot():
-    body = request.get_json(silent=True) or {}
-    query = (body.get("query") or "").strip()
+    b = body()
+    query = (b.get("query") or "").strip()
     if not query:
         return err("Query is required", 400)
     try:
-        result = services.answer(query, body.get("title") or None)
+        result = services.answer(query, b.get("title") or None, b.get("history"))
         return jsonify({"query": query, **result})
     except Exception as e:
         log.exception("chatbot failed")
         return server_error(e)
 
 
+@app.route("/compare", methods=["POST"])
+def compare_route():
+    b = body()
+    try:
+        return jsonify(compare.compare_papers(b.get("titles") or [], b.get("topic") or ""))
+    except compare.BadRequest as e:
+        return err(str(e), 400)
+    except compare.CrewUnavailable as e:
+        return err(str(e), 501)
+    except Exception as e:
+        log.exception("compare failed")
+        return server_error(e)
+
+
 if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+    app.run(host=os.getenv("HOST", "127.0.0.1"), port=5000, debug=os.getenv("FLASK_DEBUG") == "1")
