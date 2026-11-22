@@ -74,6 +74,17 @@ def list_titles() -> List[str]:
         return [r[0] for r in cur.fetchall()]
 
 
+def list_papers() -> List[Dict]:
+    with cursor() as cur:
+        cur.execute(
+            "SELECT p.title, p.created_at, COUNT(c.id), COALESCE(MAX(c.page), 0) "
+            "FROM papers p LEFT JOIN chunks c ON c.paper_id = p.id "
+            "GROUP BY p.id ORDER BY p.created_at DESC"
+        )
+        return [{"title": r[0], "created_at": r[1].isoformat(), "chunks": r[2], "pages": r[3]}
+                for r in cur.fetchall()]
+
+
 def get_paper_text(title: str) -> Optional[str]:
     with cursor() as cur:
         cur.execute(

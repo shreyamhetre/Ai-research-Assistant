@@ -1,22 +1,37 @@
 @import '@fontsource/inter/400.css';
 @import '@fontsource/inter/500.css';
 @import '@fontsource/inter/600.css';
-@import '@fontsource/inter/700.css';
+@import '@fontsource/newsreader/400.css';
+@import '@fontsource/newsreader/500.css';
+@import '@fontsource/newsreader/600.css';
 
-html, body, #root { height: 100%; }
+html, body, #root { min-height: 100%; }
 
 body {
   margin: 0;
-  background: #0b0f17;
+  background: #faf9f6;
+  color: #1c1b18;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-* { scrollbar-width: thin; scrollbar-color: #2a3650 transparent; }
+::selection { background: #f4d9cc; }
+* { scrollbar-width: thin; scrollbar-color: #d6d2c6 transparent; }
 
-.md p { margin: 0 0 0.75em; line-height: 1.65; }
+.md { line-height: 1.7; }
+.md p { margin: 0 0 0.9em; }
 .md p:last-child { margin-bottom: 0; }
-.md h1, .md h2, .md h3, .md h4 { margin: 1.1em 0 0.4em; font-size: 1.02em; font-weight: 650; }
-.md ul, .md ol { margin: 0 0 0.75em; padding-left: 1.3em; line-height: 1.65; }
-.md code { background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
-.md strong { font-weight: 650; }
+.md h1, .md h2, .md h3, .md h4 {
+  font-family: "Newsreader", Georgia, serif;
+  font-weight: 600; letter-spacing: -0.01em; line-height: 1.25;
+  margin: 1.5em 0 0.45em;
+}
+.md h1 { font-size: 1.55em; }
+.md h2 { font-size: 1.3em; }
+.md h3, .md h4 { font-size: 1.1em; }
+.md > :first-child { margin-top: 0; }
+.md ul, .md ol { margin: 0 0 0.9em; padding-left: 1.35em; }
+.md li { margin-bottom: 0.3em; }
+.md code { background: #f3f1ec; padding: 1px 5px; border-radius: 4px; font-size: 0.88em; }
+.md strong { font-weight: 600; }
+.md a { color: #c2410c; }

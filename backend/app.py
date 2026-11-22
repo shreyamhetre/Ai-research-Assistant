@@ -71,6 +71,15 @@ def fetch_titles():
         return server_error(e)
 
 
+@app.route("/papers", methods=["GET"])
+def papers():
+    try:
+        return jsonify({"papers": db.list_papers()})
+    except Exception as e:
+        log.exception("papers failed")
+        return server_error(e)
+
+
 def _title_from_body():
     title = (request.get_json(silent=True) or {}).get("title")
     return title if title else None

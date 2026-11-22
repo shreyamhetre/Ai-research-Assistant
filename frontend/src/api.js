@@ -20,7 +20,8 @@ const post = (path, body) =>
   });
 
 export const api = {
-  titles: () => request('/fetch-titles').then((d) => d.titles),
+  health: () => request('/health'),
+  papers: () => request('/papers').then((d) => d.papers),
   upload: (file, title) => {
     const form = new FormData();
     form.append('file', file);

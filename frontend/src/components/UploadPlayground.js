@@ -1,18 +1,29 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, List, ListItem, ListItemIcon, ListItemText, Paper, TextField, Typography,
+  DialogTitle, Skeleton, TextField, Typography,
 } from '@mui/material';
-import CloudUploadIcon from '@mui/icons-material/CloudUploadOutlined';
-import DescriptionIcon from '@mui/icons-material/DescriptionOutlined';
 import { api } from '../api';
-import { colors } from '../theme';
-import { useTitles } from '../hooks';
+import { colors, serif } from '../theme';
+import { useApp } from '../hooks';
 import PageHeader from './PageHeader';
+
+const RowAction = ({ children, onClick }) => (
+  <Box
+    component="button"
+    onClick={onClick}
+    sx={{
+      all: 'unset', cursor: 'pointer', fontSize: 13.5, fontWeight: 500, color: colors.muted, px: 1, py: 0.5, borderRadius: 1.5,
+      '&:hover': { color: colors.ink, bgcolor: colors.sunken }, '&:focus-visible': { outline: `2px solid ${colors.accent}` },
+    }}
+  >
+    {children}
+  </Box>
+);
 
 const UploadPlayground = () => {
   const inputRef = useRef(null);
-  const { titles, error: listError, refresh } = useTitles();
+  const { papers, loaded, error: listError, refresh, setPaper, go } = useApp();
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -32,10 +43,26 @@ const UploadPlayground = () => {
     setTitle(f.name.replace(/\.pdf$/i, ''));
   };
 
+  // Drop a PDF anywhere on the page.
+  useEffect(() => {
+    const over = (e) => { e.preventDefault(); setDragging(true); };
+    const leave = (e) => { if (!e.relatedTarget) setDragging(false); };
+    const drop = (e) => { e.preventDefault(); setDragging(false); pick(e.dataTransfer?.files?.[0]); };
+    window.addEventListener('dragover', over);
+    window.addEventListener('dragleave', leave);
+    window.addEventListener('drop', drop);
+    return () => {
+      window.removeEventListener('dragover', over);
+      window.removeEventListener('dragleave', leave);
+      window.removeEventListener('drop', drop);
+    };
+  }, []);
+
   const close = () => {
     if (loading) return;
     setFile(null);
     setTitle('');
+    setError('');
   };
 
   const upload = async () => {
@@ -43,7 +70,7 @@ const UploadPlayground = () => {
     setError('');
     try {
       const res = await api.upload(file, title.trim());
-      setNotice(`"${title.trim()}" added (${res.chunks} passages indexed).`);
+      setNotice(`Added “${title.trim()}” (${res.chunks} passages indexed).`);
       setFile(null);
       setTitle('');
       refresh();
@@ -54,77 +81,99 @@ const UploadPlayground = () => {
     }
   };
 
+  const open = (t, tab) => {
+    setPaper(t);
+    go(tab);
+  };
+
+  const picker = (
+    <input
+      ref={inputRef} type="file" accept=".pdf,application/pdf" hidden
+      onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }}
+    />
+  );
+
   return (
     <Box>
-      <PageHeader
-        title="Library"
-        subtitle="Upload research papers, then ask questions, summarise or quiz yourself."
-      />
+      <PageHeader title="Your library" subtitle="Upload papers, then ask questions, read summaries or take a quiz.">
+        <Button variant="contained" onClick={() => inputRef.current?.click()}>Upload paper</Button>
+      </PageHeader>
+      {picker}
 
-      <Paper
-        variant="outlined"
-        onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setDragging(false); pick(e.dataTransfer.files?.[0]); }}
-        sx={{
-          p: 5, textAlign: 'center', cursor: 'pointer', borderStyle: 'dashed', borderWidth: 2,
-          borderColor: dragging ? colors.accent : colors.border,
-          bgcolor: dragging ? 'rgba(99,102,241,0.08)' : colors.surface,
-          transition: 'all .15s',
-          '&:hover': { borderColor: colors.accent },
-        }}
-      >
-        <CloudUploadIcon sx={{ fontSize: 40, color: colors.accent, mb: 1 }} />
-        <Typography sx={{ fontWeight: 600 }}>Drop a PDF here, or click to browse</Typography>
-        <Typography variant="body2" color="text.secondary">PDF only, up to 25 MB</Typography>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf,application/pdf"
-          hidden
-          onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }}
-        />
-      </Paper>
+      {notice && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice('')}>{notice}</Alert>}
+      {error && !file && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      {listError && <Alert severity="warning" sx={{ mb: 2 }}>{listError}</Alert>}
 
-      {notice && <Alert severity="success" sx={{ mt: 2 }} onClose={() => setNotice('')}>{notice}</Alert>}
-      {(error && !file) && <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError('')}>{error}</Alert>}
-      {listError && <Alert severity="warning" sx={{ mt: 2 }}>{listError}</Alert>}
+      {!loaded ? (
+        <Skeleton variant="rounded" height={72} />
+      ) : papers.length === 0 ? (
+        <Box
+          onClick={() => inputRef.current?.click()}
+          sx={{
+            border: `1.5px dashed ${colors.borderStrong}`, borderRadius: 4, py: 9, textAlign: 'center', cursor: 'pointer',
+            '&:hover': { borderColor: colors.ink, bgcolor: colors.surface },
+          }}
+        >
+          <Typography sx={{ fontFamily: serif, fontSize: 24, fontWeight: 500, mb: 0.5 }}>Add your first paper</Typography>
+          <Typography sx={{ color: colors.muted, fontSize: 14.5 }}>Drop a PDF anywhere, or click to browse. Up to 25 MB.</Typography>
+        </Box>
+      ) : (
+        <Box sx={{ borderTop: `1px solid ${colors.border}` }}>
+          {papers.map((p) => (
+            <Box
+              key={p.title}
+              sx={{
+                display: 'flex', alignItems: 'center', gap: 2, py: 2.25, px: 1, borderBottom: `1px solid ${colors.border}`,
+                flexWrap: 'wrap', '&:hover': { bgcolor: 'rgba(243,241,236,0.6)' },
+              }}
+            >
+              <Box sx={{ flex: 1, minWidth: 220 }}>
+                <Typography sx={{ fontFamily: serif, fontSize: 19, fontWeight: 500, lineHeight: 1.3, letterSpacing: '-0.01em' }}>
+                  {p.title}
+                </Typography>
+                <Typography sx={{ fontSize: 13, color: colors.faint, mt: 0.5 }}>
+                  {p.pages} pages · {p.chunks} passages ·{' '}
+                  {new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <RowAction onClick={() => open(p.title, 'ask')}>Ask</RowAction>
+                <RowAction onClick={() => open(p.title, 'summary')}>Summarise</RowAction>
+                <RowAction onClick={() => open(p.title, 'quiz')}>Quiz</RowAction>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      )}
 
-      <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mt: 4, mb: 1 }}>
-        Your papers ({titles.length})
-      </Typography>
-      <Paper variant="outlined" sx={{ bgcolor: colors.surface }}>
-        {titles.length === 0 ? (
-          <Typography color="text.secondary" sx={{ p: 3, textAlign: 'center' }}>
-            No papers yet.
-          </Typography>
-        ) : (
-          <List disablePadding>
-            {titles.map((t, i) => (
-              <ListItem key={t} divider={i < titles.length - 1}>
-                <ListItemIcon sx={{ minWidth: 36 }}><DescriptionIcon fontSize="small" /></ListItemIcon>
-                <ListItemText primary={t} primaryTypographyProps={{ fontSize: 14 }} />
-              </ListItem>
-            ))}
-          </List>
-        )}
-      </Paper>
+      {dragging && (
+        <Box
+          sx={{
+            position: 'fixed', inset: 0, zIndex: 50, display: 'grid', placeItems: 'center', pointerEvents: 'none',
+            bgcolor: 'rgba(250,249,246,0.92)', border: `2px dashed ${colors.accent}`, m: 2, borderRadius: 4,
+          }}
+        >
+          <Typography sx={{ fontFamily: serif, fontSize: 30, color: colors.accent }}>Drop PDF to add it</Typography>
+        </Box>
+      )}
 
       <Dialog open={!!file} onClose={close} fullWidth maxWidth="xs">
-        <DialogTitle>Add paper</DialogTitle>
+        <DialogTitle sx={{ fontFamily: serif, fontSize: 24, fontWeight: 500 }}>Add paper</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }} noWrap>
-            {file?.name}
-          </Typography>
+          <Typography variant="body2" sx={{ color: colors.muted, mb: 2 }} noWrap>{file?.name}</Typography>
           <TextField
             autoFocus fullWidth size="small" label="Title" value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            disabled={loading}
+            onChange={(e) => setTitle(e.target.value)} disabled={loading}
+            onKeyDown={(e) => e.key === 'Enter' && title.trim() && !loading && upload()}
           />
+          {loading && (
+            <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: colors.muted }}>
+              Reading and indexing the paper. The first upload also loads the embedding model, so it can take a moment.
+            </Typography>
+          )}
           {error && file && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={close} disabled={loading} color="inherit">Cancel</Button>
           <Button variant="contained" onClick={upload} disabled={!title.trim() || loading}>
             {loading ? <CircularProgress size={20} color="inherit" /> : 'Upload'}

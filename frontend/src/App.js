@@ -1,34 +1,44 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Box, ThemeProvider, CssBaseline } from '@mui/material';
 import theme, { colors } from './theme';
-import Sidebar from './components/Sidebar';
+import { AppProvider } from './hooks';
+import TopNav, { TABS } from './components/TopNav';
 import UploadPlayground from './components/UploadPlayground';
 import SummaryAI from './components/SummaryAI';
 import ChatbotAI from './components/ChatbotAI';
 import MCQAI from './components/MCQAI';
 
-const PAGES = {
-  upload: UploadPlayground,
-  summary: SummaryAI,
-  chatbot: ChatbotAI,
-  mcq: MCQAI,
+const PAGES = { library: UploadPlayground, ask: ChatbotAI, summary: SummaryAI, quiz: MCQAI };
+const fromHash = () => {
+  const id = window.location.hash.replace('#/', '');
+  return TABS.some((t) => t.id === id) ? id : 'library';
 };
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState('upload');
-  const Page = PAGES[activeTab];
+  const [tab, setTab] = useState(fromHash);
 
+  useEffect(() => {
+    const onHash = () => setTab(fromHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  const go = useCallback((id) => {
+    window.location.hash = `#/${id}`;
+  }, []);
+
+  const Page = PAGES[tab];
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ display: 'flex', height: '100vh', bgcolor: colors.bg }}>
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-        <Box component="main" sx={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
-          <Box sx={{ maxWidth: 900, mx: 'auto', p: { xs: 2, md: 4 }, height: '100%', boxSizing: 'border-box' }}>
+      <AppProvider go={go}>
+        <Box sx={{ minHeight: '100vh', bgcolor: colors.bg }}>
+          <TopNav tab={tab} onTab={go} />
+          <Box component="main" sx={{ maxWidth: 860, mx: 'auto', px: { xs: 2, md: 4 }, py: { xs: 3, md: 6 } }}>
             <Page />
           </Box>
         </Box>
-      </Box>
+      </AppProvider>
     </ThemeProvider>
   );
 };
