@@ -41,3 +41,5 @@ class Config:
 
     # Study Assistant (CrewAI agent): cap on reasoning/tool steps per message
     AGENT_MAX_ITER = 5
+    # Comparison crew: one researcher agent per paper, so this bounds cost and runtime
+    COMPARE_MAX_PAPERS = 4

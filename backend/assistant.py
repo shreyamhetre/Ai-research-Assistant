@@ -1,13 +1,18 @@
-"""Study Assistant: a CrewAI agent that answers doubts, summarises papers and runs quizzes.
+"""Study Assistant: a CrewAI agent that answers doubts, summarises papers, runs quizzes and
+compares papers.
 
-One agent with four tools, each reusing code the rest of the app already relies on:
+One agent with five tools, each reusing code the rest of the app already relies on:
   search_papers        hybrid retrieval + reranking (optionally one paper), returns numbered passages
   summarize_paper      cached summary
   generate_quiz        new multiple-choice questions, saved as spaced-repetition cards
   review_due_questions saved cards that are due for review
+  compare_papers       HANDOFF to a multi-agent crew (comparison.py): one researcher agent per paper
+                       plus a critic agent. Runs only when the user asks to compare papers.
 
-Tools record structured results (citations, quiz, summary) in a per-request RunState, so the UI
-does not depend on the model formatting JSON; the agent only writes the chat text.
+So the architecture is a tool-using agent that delegates to a multi-agent crew for comparisons.
+
+Tools record structured results (citations, quiz, summary, comparison) in a per-request RunState,
+so the UI does not depend on the model formatting JSON; the agent only writes the chat text.
 
 CrewAI needs Python 3.10-3.13. The import is lazy: without it the assistant falls back to plain
 RAG for questions, and the rest of the app keeps working.
@@ -17,6 +22,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
 
+import comparison
 import db
 import db_extra
 import retrieval
@@ -41,6 +47,7 @@ class RunState:
     sources: List[Dict] = field(default_factory=list)
     quiz: List[Dict] = field(default_factory=list)
     summary: Optional[Dict] = None
+    comparison: Optional[Dict] = None
     tools_used: List[str] = field(default_factory=list)
     _seen: Dict[int, int] = field(default_factory=dict)  # chunk id -> citation number
 
@@ -153,11 +160,39 @@ def build_tools(state: RunState, known: List[str], tool: Callable) -> Dict[str, 
         state.quiz = due["cards"]
         return f"{len(due['cards'])} questions are due. They are shown to the user as an interactive quiz."
 
+    @tool("compare_papers")
+    def compare_papers(topic: str, papers: str) -> str:
+        """Compare two or more papers on a topic: where they agree and where they contradict.
+        Hands off to a team of agents (one researcher per paper plus a critic), which takes about
+        a minute, so use it only when the user asks to compare papers. 'papers' is a
+        semicolon-separated list of exact titles, or an empty string to use the selected papers
+        (2 to 4). The result is shown to the user automatically in a card."""
+        state.used("compare_papers")
+        if (papers or "").strip():
+            titles: List[str] = []
+            for name in papers.split(";"):
+                if not name.strip():
+                    continue
+                title, error = _find_title(name, known)
+                if error:
+                    return error
+                titles.append(title)
+        else:
+            titles = state.scope or known
+        try:
+            result = comparison.compare_papers(titles, topic)
+        except comparison.BadRequest as e:
+            return str(e)
+        state.comparison = result
+        return (f"The comparison of {len(result['papers'])} papers is already displayed to the user "
+                f"as a card; do not repeat it. Synthesis: {result['summary']}")
+
     return {
         "search_papers": search_papers,
         "summarize_paper": summarize_paper,
         "generate_quiz": generate_quiz,
         "review_due_questions": review_due_questions,
+        "compare_papers": compare_papers,
     }
 
 
@@ -179,8 +214,9 @@ How to work:
   Answer ONLY from the returned passages and cite them inline as [n] using the numbers returned.
   If the passages do not contain the answer, say so, then answer briefly from general knowledge and
   label it clearly as not from the papers.
-- Comparing papers: search each paper separately (use the paper argument), then contrast what each
-  says, with citations.
+- Comparing papers ("compare", "how do these differ", "do they agree"): call compare_papers with the
+  topic. It runs a separate team of agents and shows the result in a card automatically, so reply
+  with one or two sentences. Do not use search_papers to compare.
 - Summary requests: call summarize_paper. The summary appears in a card automatically, so reply with
   at most one or two sentences.
 - Quiz, MCQ or "test me" requests: call generate_quiz. For "review" or "what is due": call
@@ -200,7 +236,8 @@ def _fallback(message: str, scope: List[str], history: Optional[List[Dict]]) -> 
     """No CrewAI: answer questions with plain RAG so the app still works."""
     title = scope[0] if len(scope) == 1 else None
     result = services.answer(message, title, history)
-    return {**result, "quiz": None, "summary": None, "tools_used": [], "agent": False}
+    return {**result, "quiz": None, "summary": None, "comparison": None, "tools_used": [],
+            "agent": False}
 
 
 def run(message: str, titles: Optional[List[str]] = None,
@@ -248,9 +285,10 @@ def run(message: str, titles: Optional[List[str]] = None,
     return {
         "response": text or "I couldn't produce an answer. Please try rephrasing.",
         "sources": state.sources,
-        "grounded": bool(state.sources or state.quiz or state.summary),
+        "grounded": bool(state.sources or state.quiz or state.summary or state.comparison),
         "quiz": state.quiz or None,
         "summary": state.summary,
+        "comparison": state.comparison,
         "tools_used": state.tools_used,
         "agent": True,
     }

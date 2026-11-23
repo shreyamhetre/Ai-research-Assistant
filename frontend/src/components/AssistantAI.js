@@ -7,6 +7,7 @@ import { copyText, useApp } from '../hooks';
 import PageHeader from './PageHeader';
 import Answer from './Answer';
 import QuizPlayer from './QuizPlayer';
+import ComparisonCard from './ComparisonCard';
 
 const SUGGESTIONS = [
   'Summarise this paper',
@@ -20,6 +21,7 @@ const TOOL_LABEL = {
   summarize_paper: 'summarised a paper',
   generate_quiz: 'generated a quiz',
   review_due_questions: 'loaded your review questions',
+  compare_papers: 'handed off to the comparison crew (one researcher per paper plus a critic)',
 };
 
 const ALL = '__all__';
@@ -117,7 +119,9 @@ const Message = ({ msg }) => {
 
       {msg.quiz && <Card><QuizPlayer questions={msg.quiz} /></Card>}
 
-      {msg.grounded === false && !msg.isError && !msg.quiz && !msg.summary && msg.agent !== undefined && msg.usedTools?.length === 0 && (
+      {msg.comparison && <Card><ComparisonCard data={msg.comparison} /></Card>}
+
+      {msg.grounded === false && !msg.isError && !msg.quiz && !msg.summary && !msg.comparison && msg.agent !== undefined && msg.usedTools?.length === 0 && (
         <Typography sx={{ mt: 1.5, fontSize: 12.5, color: colors.faint }}>Answered without searching your papers.</Typography>
       )}
       {msg.sources?.length > 0 && <Sources sources={citedOnly(msg)} />}
@@ -125,7 +129,7 @@ const Message = ({ msg }) => {
       {msg.agent === false && (
         <Typography sx={{ mt: 1.5, fontSize: 12.5, color: colors.accent }}>
           The agent isn’t available on this server (CrewAI needs Python 3.12), so this was answered with direct search.
-          Summaries and quizzes need the agent.
+          Summaries, quizzes and comparisons need the agent.
         </Typography>
       )}
       {msg.usedTools?.length > 0 && (
@@ -158,12 +162,14 @@ const Working = () => (
         />
       ))}
     </Box>
-    <Typography sx={{ fontSize: 13, color: colors.faint }}>The assistant is working. This can take 10 to 20 seconds.</Typography>
+    <Typography sx={{ fontSize: 13, color: colors.faint }}>
+      The assistant is working. This takes 10 to 20 seconds; comparing papers runs a team of agents and takes about a minute.
+    </Typography>
   </Box>
 );
 
 const AssistantAI = () => {
-  const { scope, draft, setDraft } = useApp();
+  const { scope, draft, setDraft, titles } = useApp();
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -203,7 +209,7 @@ const AssistantAI = () => {
       const d = await api.assistant(q, scope, history);
       setMessages((m) => [...m, {
         sender: 'bot', text: d.response, sources: d.sources, grounded: d.grounded,
-        quiz: d.quiz, summary: d.summary, usedTools: d.tools_used, agent: d.agent,
+        quiz: d.quiz, summary: d.summary, comparison: d.comparison, usedTools: d.tools_used, agent: d.agent,
       }]);
     } catch (e) {
       setMessages((m) => [...m, { sender: 'bot', text: e.message, isError: true }]);
@@ -230,7 +236,7 @@ const AssistantAI = () => {
               What would you like to do?
             </Typography>
             <Box sx={{ borderTop: `1px solid ${colors.border}` }}>
-              {SUGGESTIONS.map((s) => (
+              {[...SUGGESTIONS, ...(titles.length > 1 ? ['Compare my papers: where do they agree or disagree?'] : [])].map((s) => (
                 <Box
                   key={s} component="button" onClick={() => send(s)}
                   sx={{

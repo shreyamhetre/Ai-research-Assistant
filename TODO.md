@@ -13,11 +13,13 @@ Rule for every phase: secrets live only in `backend/.env` (gitignored). No keys,
 ## Phase 2 - Study Assistant (CrewAI) - code written, NOT yet tested
 - [x] One agent, four tools: search_papers, summarize_paper, generate_quiz, review_due_questions
 - [x] Per-request side channel for citations, quiz and summary (UI never depends on the model formatting JSON)
-- [x] Multi-paper scope (select papers or all); the agent searches per paper to compare
+- [x] Multi-paper scope (select papers or all)
+- [x] `compare_papers` tool: handoff to a multi-agent crew (researcher agent per paper + critic), shown as a comparison card
 - [x] Plain-RAG fallback when CrewAI is not installed (Python 3.14)
 - [x] Study Assistant tab: summary and quiz cards inline, tools-used caption, review prompt
 - [x] Click a citation or source to open the stored PDF at that page
-- [ ] Test the agent end to end (needs a Python 3.12 venv)
+- [ ] Test the agent and the comparison crew end to end (needs a Python 3.12 venv)
+- [ ] Optional: Reviewer agent that verifies answers against their citations (generator + verifier)
 
 ## Phase 3 - Polish - code written, NOT yet tested
 - [x] Chat memory (last 6 messages; short follow-ups borrow the previous question for retrieval)

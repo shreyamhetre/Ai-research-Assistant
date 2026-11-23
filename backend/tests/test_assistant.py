@@ -136,3 +136,48 @@ def test_unknown_scope_titles_are_ignored(monkeypatch):
                         lambda m, t, h: seen.update(title=t) or {"response": "r", "sources": [], "grounded": False})
     assistant.run("q", ["Not a paper"])
     assert seen["title"] is None
+
+
+def test_compare_hands_off_to_the_crew_with_the_selected_papers(monkeypatch):
+    result = {"topic": "learning", "papers": KNOWN, "summary": "they differ", "points": []}
+    seen = {}
+
+    def fake_compare(titles, topic):
+        seen.update(titles=titles, topic=topic)
+        return result
+
+    monkeypatch.setattr(assistant.comparison, "compare_papers", fake_compare)
+    state, tools = make(scope=KNOWN)
+    out = tools["compare_papers"]("learning", "")
+    assert seen == {"titles": KNOWN, "topic": "learning"}
+    assert state.comparison == result and state.tools_used == ["compare_papers"]
+    assert "already displayed" in out and "they differ" in out
+
+
+def test_compare_resolves_named_papers(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(assistant.comparison, "compare_papers",
+                        lambda titles, topic: seen.update(titles=titles) or {"papers": titles, "summary": "s", "points": []})
+    _, tools = make()
+    tools["compare_papers"]("x", "attention; schank")
+    assert seen["titles"] == [KNOWN[1], KNOWN[0]]
+
+
+def test_compare_reports_unknown_paper_without_starting_the_crew(monkeypatch):
+    def must_not_run(titles, topic):
+        raise AssertionError("crew should not start")
+
+    monkeypatch.setattr(assistant.comparison, "compare_papers", must_not_run)
+    state, tools = make()
+    assert "Unknown paper" in tools["compare_papers"]("x", "nope; attention")
+    assert state.comparison is None
+
+
+def test_compare_passes_validation_errors_back_to_the_agent(monkeypatch):
+    def bad(titles, topic):
+        raise assistant.comparison.BadRequest("Select between 2 and 4 papers to compare.")
+
+    monkeypatch.setattr(assistant.comparison, "compare_papers", bad)
+    state, tools = make(scope=[KNOWN[0]])
+    assert "Select between" in tools["compare_papers"]("x", "")
+    assert state.comparison is None
