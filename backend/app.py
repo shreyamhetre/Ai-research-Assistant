@@ -4,7 +4,7 @@ import os
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
-import compare
+import assistant
 import db
 import db_extra
 import services
@@ -198,17 +198,17 @@ def chatbot():
         return server_error(e)
 
 
-@app.route("/compare", methods=["POST"])
-def compare_route():
+@app.route("/assistant", methods=["POST"])
+def assistant_route():
+    """Study Assistant: a CrewAI agent that answers, summarises or quizzes as the user asks."""
     b = body()
+    message = (b.get("message") or "").strip()
+    if not message:
+        return err("Message is required", 400)
     try:
-        return jsonify(compare.compare_papers(b.get("titles") or [], b.get("topic") or ""))
-    except compare.BadRequest as e:
-        return err(str(e), 400)
-    except compare.CrewUnavailable as e:
-        return err(str(e), 501)
+        return jsonify(assistant.run(message, b.get("titles"), b.get("history")))
     except Exception as e:
-        log.exception("compare failed")
+        log.exception("assistant failed")
         return server_error(e)
 
 

@@ -101,17 +101,24 @@ def _row_to_hit(r) -> Dict:
             "content": r[5], "score": float(r[6])}
 
 
-def search(embedding: List[float], k: int, title: Optional[str] = None) -> List[Dict]:
-    """Vector search. score = cosine similarity (higher is better)."""
+def _titles(title) -> List[str]:
+    """A paper title, or a list of titles, as a list (empty = no filter)."""
+    if not title:
+        return []
+    return [title] if isinstance(title, str) else list(title)
+
+
+def search(embedding: List[float], k: int, title=None) -> List[Dict]:
+    """Vector search over all papers, one title, or a list of titles. score = cosine similarity."""
     sql = (
         "SELECT c.id, c.paper_id, p.title, c.page, c.chunk_idx, c.content, "
         "1 - (c.embedding <=> %s::vector) AS score "
         "FROM chunks c JOIN papers p ON p.id = c.paper_id "
     )
     params: list = [_vec(embedding)]
-    if title:
-        sql += "WHERE p.title = %s "
-        params.append(title)
+    if _titles(title):
+        sql += "WHERE p.title = ANY(%s) "
+        params.append(_titles(title))
     sql += "ORDER BY c.embedding <=> %s::vector LIMIT %s"
     params += [_vec(embedding), k]
     with cursor() as cur:
@@ -122,7 +129,7 @@ def search(embedding: List[float], k: int, title: Optional[str] = None) -> List[
     return hits
 
 
-def search_text(tsquery: str, k: int, title: Optional[str] = None) -> List[Dict]:
+def search_text(tsquery: str, k: int, title=None) -> List[Dict]:
     """Full-text search. `tsquery` must be a sanitised 'a | b | c' string. score = ts_rank_cd."""
     if not tsquery:
         return []
@@ -133,9 +140,9 @@ def search_text(tsquery: str, k: int, title: Optional[str] = None) -> List[Dict]
         "WHERE c.tsv @@ to_tsquery('english', %s) "
     )
     params: list = [tsquery, tsquery]
-    if title:
-        sql += "AND p.title = %s "
-        params.append(title)
+    if _titles(title):
+        sql += "AND p.title = ANY(%s) "
+        params.append(_titles(title))
     sql += "ORDER BY score DESC LIMIT %s"
     params.append(k)
     with cursor() as cur:

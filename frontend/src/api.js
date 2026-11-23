@@ -38,6 +38,5 @@ export const api = {
   mcq: (title) => post('/createMcq', { title }),
   dueCards: (title) => request(`/review/due${title ? `?title=${q(title)}` : ''}`),
   review: (id, correct) => post('/review', { id, correct }),
-  chat: (query, title, history) => post('/chatbot', { query, title: title || undefined, history }),
-  compare: (titles, topic) => post('/compare', { titles, topic }),
+  assistant: (message, titles, history) => post('/assistant', { message, titles, history }),
 };

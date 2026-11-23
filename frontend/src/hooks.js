@@ -7,7 +7,9 @@ export const useApp = () => useContext(AppContext);
 /** Shared library state: papers, current paper selection, navigation. */
 export function AppProvider({ go, children }) {
   const [papers, setPapers] = useState([]);
-  const [paper, setPaper] = useState(''); // '' = none / all papers
+  const [paper, setPaper] = useState(''); // single paper for Summaries ('' = first)
+  const [scope, setScope] = useState([]); // papers the Study Assistant searches ([] = all)
+  const [draft, setDraft] = useState(''); // prompt handed to the Study Assistant from elsewhere
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
 
@@ -27,8 +29,11 @@ export function AppProvider({ go, children }) {
   }, [refresh]);
 
   const value = useMemo(
-    () => ({ papers, titles: papers.map((p) => p.title), paper, setPaper, error, loaded, refresh, go }),
-    [papers, paper, error, loaded, refresh, go]
+    () => ({
+      papers, titles: papers.map((p) => p.title), paper, setPaper, scope, setScope, draft, setDraft,
+      error, loaded, refresh, go,
+    }),
+    [papers, paper, scope, draft, error, loaded, refresh, go]
   );
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

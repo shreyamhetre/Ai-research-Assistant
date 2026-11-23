@@ -121,22 +121,30 @@ def test_paper_file(client, monkeypatch):
     assert r.status_code == 200 and r.mimetype == "application/pdf"
 
 
-def test_compare_maps_errors(client, monkeypatch):
-    def bad(titles, topic):
-        raise app_module.compare.BadRequest("Select between 2 and 4 papers.")
-
-    monkeypatch.setattr(app_module.compare, "compare_papers", bad)
-    assert client.post("/compare", json={"titles": ["A"], "topic": "x"}).status_code == 400
-
-    def unavailable(titles, topic):
-        raise app_module.compare.CrewUnavailable("CrewAI is not installed")
-
-    monkeypatch.setattr(app_module.compare, "compare_papers", unavailable)
-    assert client.post("/compare", json={"titles": ["A", "B"], "topic": "x"}).status_code == 501
+def test_assistant_requires_message(client):
+    assert client.post("/assistant", json={"message": "   "}).status_code == 400
+    assert client.post("/assistant", json={}).status_code == 400
 
 
-def test_compare_success(client, monkeypatch):
-    monkeypatch.setattr(app_module.compare, "compare_papers",
-                        lambda titles, topic: {"topic": topic, "papers": titles, "summary": "s", "points": []})
-    r = client.post("/compare", json={"titles": ["A", "B"], "topic": "learning"})
-    assert r.status_code == 200 and r.get_json()["papers"] == ["A", "B"]
+def test_assistant_errors_do_not_leak_details(client, monkeypatch):
+    def boom(message, titles=None, history=None):
+        raise RuntimeError("secret sk-abc123")
+
+    monkeypatch.setattr(app_module.assistant, "run", boom)
+    r = client.post("/assistant", json={"message": "hi"})
+    assert r.status_code == 500 and "sk-abc123" not in r.get_data(as_text=True)
+
+
+def test_assistant_passes_scope_and_history(client, monkeypatch):
+    seen = {}
+
+    def fake(message, titles=None, history=None):
+        seen.update(message=message, titles=titles, history=history)
+        return {"response": "r", "sources": [], "grounded": False, "quiz": None,
+                "summary": None, "tools_used": [], "agent": True}
+
+    monkeypatch.setattr(app_module.assistant, "run", fake)
+    history = [{"role": "user", "content": "hi"}]
+    r = client.post("/assistant", json={"message": "quiz me", "titles": ["A", "B"], "history": history})
+    assert r.status_code == 200 and r.get_json()["agent"] is True
+    assert seen == {"message": "quiz me", "titles": ["A", "B"], "history": history}

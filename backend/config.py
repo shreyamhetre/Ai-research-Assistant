@@ -39,5 +39,5 @@ class Config:
     # Chat memory: how many previous messages are sent to the model
     HISTORY_MESSAGES = 6
 
-    # Multi-paper comparison (CrewAI)
-    COMPARE_MAX_PAPERS = 4
+    # Study Assistant (CrewAI agent): cap on reasoning/tool steps per message
+    AGENT_MAX_ITER = 5

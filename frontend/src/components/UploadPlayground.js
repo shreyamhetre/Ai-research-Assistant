@@ -23,7 +23,7 @@ const RowAction = ({ children, onClick }) => (
 
 const UploadPlayground = () => {
   const inputRef = useRef(null);
-  const { papers, loaded, error: listError, refresh, setPaper, go } = useApp();
+  const { papers, loaded, error: listError, refresh, setPaper, setScope, setDraft, go } = useApp();
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -83,8 +83,10 @@ const UploadPlayground = () => {
     }
   };
 
-  const open = (t, tab) => {
+  const open = (t, tab, prompt) => {
     setPaper(t);
+    setScope([t]);
+    if (prompt) setDraft(prompt);
     go(tab);
   };
 
@@ -154,9 +156,9 @@ const UploadPlayground = () => {
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
-                <RowAction onClick={() => open(p.title, 'ask')}>Ask</RowAction>
+                <RowAction onClick={() => open(p.title, 'assistant')}>Ask</RowAction>
                 <RowAction onClick={() => open(p.title, 'summary')}>Summarise</RowAction>
-                <RowAction onClick={() => open(p.title, 'quiz')}>Quiz</RowAction>
+                <RowAction onClick={() => open(p.title, 'assistant', 'Quiz me on this paper')}>Quiz</RowAction>
                 <RowAction onClick={() => window.open(pdfUrl(p.title), '_blank', 'noopener')}>PDF</RowAction>
                 <RowAction onClick={() => setToDelete(p.title)}>Delete</RowAction>
               </Box>

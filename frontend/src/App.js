@@ -5,11 +5,9 @@ import { AppProvider } from './hooks';
 import TopNav, { TABS } from './components/TopNav';
 import UploadPlayground from './components/UploadPlayground';
 import SummaryAI from './components/SummaryAI';
-import ChatbotAI from './components/ChatbotAI';
-import MCQAI from './components/MCQAI';
-import CompareAI from './components/CompareAI';
+import AssistantAI from './components/AssistantAI';
 
-const PAGES = { library: UploadPlayground, ask: ChatbotAI, summary: SummaryAI, compare: CompareAI, quiz: MCQAI };
+const PAGES = { library: UploadPlayground, summary: SummaryAI, assistant: AssistantAI };
 const fromHash = () => {
   const id = window.location.hash.replace('#/', '');
   return TABS.some((t) => t.id === id) ? id : 'library';

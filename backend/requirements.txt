@@ -7,6 +7,7 @@ psycopg2-binary>=2.9
 pypdf>=4.0
 python-dotenv>=1.0
 
-# Multi-agent paper comparison. CrewAI needs Python 3.10-3.13; the marker keeps pip from
-# resolving an ancient 0.x release on 3.14. Use a Python 3.12 venv to enable /compare.
+# Study Assistant agent. CrewAI needs Python 3.10-3.13; the marker keeps pip from resolving an
+# ancient 0.x release on 3.14. Use a Python 3.12 venv to enable it (without it the assistant
+# falls back to plain RAG for questions).
 crewai>=0.100,<2; python_version < "3.14"
