@@ -26,3 +26,8 @@ package-lock.json
 backend/.venv
 backend/visual
 backend/docker-cmds
+# real environment files hold secrets: never commit them (the .example file is the template)
+.env
+backend/.env
+!.env.example
+!backend/.env.example
